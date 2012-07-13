@@ -23,7 +23,15 @@ def main():
     logging.basicConfig(level=verbosity_to_log_level(args.verbosity), format=log_fmt)
     log.info('startup')
     w = world.read_world(args.files)
+    w.remaining_lambdas = 3
     log.debug('read world: %r', w)
+    print w
+    print
+    for move in 'UUULLDDRRULLLUL':
+      w = w.move(move)
+      print w
+      print
+
     log.info('shutdown')
 
 if __name__ == "__main__":
