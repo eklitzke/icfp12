@@ -61,10 +61,12 @@ KEY_TO_MOVE = {
     curses.KEY_DOWN: "D",
     curses.KEY_LEFT: "L",
     curses.KEY_RIGHT: "R",
+    ord('a'): "A",
     ord('k'): "U",
     ord('j'): "D",
     ord('h'): "L",
     ord('l'): "R",
+    ord('w'): "W",
 }
 
 def translate_key(key):
@@ -129,10 +131,6 @@ def main():
     finally:
         curses.nocbreak(); stdscr.keypad(0); curses.echo()
         curses.endwin()
-
-
-
-
 
 if __name__ == "__main__":
     main()
