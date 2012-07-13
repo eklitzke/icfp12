@@ -6,6 +6,8 @@ import time
 import pprint
 import logging
 
+import world
+
 log = logging.getLogger(__name__)
 
 def draw(screen):
@@ -13,28 +15,34 @@ def draw(screen):
     screen.refresh()
     time.sleep(5)
 
-def draw_world(screen, world):
+CELL_TO_COLOR_PAIR = {
+    '#': 1,
+}
+
+def draw_world(screen, the_world):
     screen_y, screen_x = screen.getmaxyx()
-    height = len(world)
-    width = max(len(row) for row in world)
+    width, height = the_world.size()
+
+    world_map = reversed(the_world.map)
 
     start_x = max(0, (screen_x / 2) - (width / 2))
 
     x, y = start_x, 1
-    for row in world:
+    for row in world_map:
         x = start_x
         for cell in row:
             #log.debug('Writing %r to %d,%d', cell, x, y)
-            screen.addstr(y, x, cell)
+            color = CELL_TO_COLOR_PAIR.get(cell, curses.color_pair(0))
+            screen.addstr(y, x, cell, color)
             x += 1
         y += 1
 
     screen.move(screen_y-1, screen_x-1)
     screen.refresh()
 
-def update_world(move, world):
+def update_world(move, the_world):
     log.info("Received move %r", move)
-    return world
+    return the_world.move(move)
 
 def display_moves(screen, moves):
     screen.move(1,1)
@@ -63,14 +71,14 @@ def main():
     logging.basicConfig(level=logging.DEBUG, format=log_fmt, filename="vis.log")
     log.debug("Starting vis")
 
-    moves = []
-    map_load = []
-    with io.open(args.file, 'r') as file:
-        for line in file:
-            map_load.append(list(line)[:-1])
+    my_world = world.read_world(args.file)
+    pprint.pprint(my_world)
 
+    moves = []
 
     stdscr = curses.initscr()
+    curses.start_color()
+    curses.init_pair(1, curses.COLOR_RED, curses.COLOR_WHITE)
     curses.cbreak()
     curses.noecho()
 
@@ -91,7 +99,7 @@ def main():
         while True:
             log.debug("Draw Loop")
             display_moves(control_win, moves)
-            draw_world(world_win, map_load)
+            draw_world(world_win, my_world)
             c = control_win.getch()
             if c == -1:
                 break
@@ -100,7 +108,7 @@ def main():
             if c in (curses.KEY_UP, curses.KEY_DOWN, curses.KEY_LEFT, curses.KEY_RIGHT):
                 move = translate_key(c)
                 moves.append(move)
-                map_load = update_world(move, map_load)
+                my_world = update_world(move, my_world)
             else:
                 log.debug("Unused key, %r", curses.keyname(c))
 
