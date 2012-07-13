@@ -7,6 +7,7 @@ import pprint
 import logging
 
 import world
+import bot
 
 log = logging.getLogger(__name__)
 
@@ -52,8 +53,22 @@ def update_world(move, the_world):
 def display_moves(screen, moves):
     screen.move(1,1)
     screen.clrtoeol()
-    screen.addstr("Moves:")
+    screen.addstr("Moves: ")
     screen.addstr("".join(moves))
+    screen.refresh()
+
+def display_status(screen, status):
+    screen.move(3,1)
+    screen.clrtoeol()
+    screen.addstr(status)
+    screen.refresh()
+
+def display_score(screen, score, collected):
+    screen.move(2,1)
+    screen.clrtoeol()
+    screen.addstr('Score: %d' % score)
+    screen.move(2, 12)
+    screen.addstr('Collected: %d' % collected)
     screen.refresh()
 
 KEY_TO_MOVE = {
@@ -61,10 +76,12 @@ KEY_TO_MOVE = {
     curses.KEY_DOWN: "D",
     curses.KEY_LEFT: "L",
     curses.KEY_RIGHT: "R",
+    ord('a'): "A",
     ord('k'): "U",
     ord('j'): "D",
     ord('h'): "L",
     ord('l'): "R",
+    ord('w'): "W",
 }
 
 def translate_key(key):
@@ -81,7 +98,7 @@ def main():
     log.debug("Starting vis")
 
     my_world = world.read_world(args.file)
-    pprint.pprint(my_world)
+    #pprint.pprint(my_world)
 
     moves = []
 
@@ -97,7 +114,7 @@ def main():
     curses.noecho()
 
     screen_y, screen_x = stdscr.getmaxyx()
-    control_win = curses.newwin(4, screen_x, 0, 0)
+    control_win = curses.newwin(5, screen_x, 0, 0)
 
     control_win.keypad(1)
     control_win.timeout(-1)
@@ -105,34 +122,56 @@ def main():
     control_win.border()
     control_win.refresh()
 
-    world_win = curses.newwin(screen_y - 4, screen_x, 4, 0)
+    world_win = curses.newwin(screen_y - 5, screen_x, 5, 0)
     world_win.border()
     world_win.refresh()
 
+    the_bot = None
+    world_event = None
     try:
         while True:
+            move = None
             log.debug("Draw Loop")
             display_moves(control_win, moves)
+            display_score(control_win, my_world.score, my_world.lambdas_collected)
             draw_world(world_win, my_world)
             c = control_win.getch()
             if c == -1:
                 break
+            if c == ord('b'):
+                if not the_bot:
+                    the_bot = bot.Bot()
+                move = the_bot.pick_move(my_world)
+
             if c in (ord('q'), ord('Q')):
                 break
             if c in KEY_TO_MOVE.keys():
                 move = translate_key(c)
+
+            if move:
                 moves.append(move)
-                my_world = update_world(move, my_world)
+                try:
+                    my_world = update_world(move, my_world)
+                except world.Aborted:
+                    break
+                except world.InvalidMove:
+                    display_status(control_win, 'Invalid move')
+                    continue
+                display_status(control_win, '')
             else:
                 log.debug("Unused key, %r", curses.keyname(c))
 
+    except world.WorldEvent, e:
+        world_event = e
     finally:
         curses.nocbreak(); stdscr.keypad(0); curses.echo()
         curses.endwin()
+        if world_event is not None:
+            print 'ended with event %r' % (e.__class__.__name__,)
 
-
-
-
+    print 'FINAL SCORE: %d' % my_world.score
+    print 'MOVES:', ''.join(moves)
+    my_world.post_score(args.file)
 
 if __name__ == "__main__":
     main()
