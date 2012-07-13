@@ -74,9 +74,8 @@ class World(object):
         except KeyError:
             return None
 
-    def update_cell(self, x, y, symbol):
-        real_x, real_y = self.translate(x, y)
-        existing = self.map[real_y][real_x]
+    def update_cell(self, x, y, symbol, direction=None):
+        existing = self.at(x, y)
         if symbol == ROCK:
             self.new_moved_rocks.notify(x, y)
         elif symbol == ROBOT:
@@ -86,8 +85,23 @@ class World(object):
                 pass
             elif existing == OPEN:
                 raise Completed()
-            elif existing in (WALL, CLOSED, ROCK):
+            elif existing in (WALL, CLOSED):
                 raise InvalidMove()
+            elif existing == ROCK:
+                if direction == 'L':
+                    if self.at(x - 1, y) == EMPTY:
+                        self.update_cell(x - 1, y, ROCK)
+                    else:
+                        raise InvalidMove()
+                elif direction == 'R':
+                    if self.at(x + 1, y) == EMPTY:
+                        self.update_cell(x + 1, y, ROCK)
+                    else:
+                        raise InvalidMove()
+                else:
+                    raise InvalidMove()
+
+        real_x, real_y = self.translate(x, y)
         self.map[real_y][real_x] = symbol
 
     def run_cell(self, x, y):
@@ -97,7 +111,7 @@ class World(object):
             return None
         if cell == ROBOT:
             if self.at(x, y + 1) == ROCK and self.old_moved_rocks.moved(x, y + 1):
-                self.killed = True
+                raise Killed()
         elif cell == ROCK:
             if self.at(x, y - 1) == EMPTY:
                 self.update_cell(x, y, EMPTY)
@@ -147,7 +161,7 @@ class World(object):
 
         if orig_robot_x != robot_x or orig_robot_y != robot_y:
             try:
-                world.update_cell(robot_x, robot_y, ROBOT)
+                world.update_cell(robot_x, robot_y, ROBOT, symbol)
                 world.update_cell(orig_robot_x, orig_robot_y, EMPTY)
             except InvalidMove:
                 pass
