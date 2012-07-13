@@ -17,6 +17,11 @@ def draw(screen):
 
 CELL_TO_COLOR_PAIR = {
     '#': 1,
+    '\\': 2,
+    '*': 3,
+    'R': 4,
+    'L': 5,
+    'O': 6,
 }
 
 def draw_world(screen, the_world):
@@ -32,8 +37,8 @@ def draw_world(screen, the_world):
         x = start_x
         for cell in row:
             #log.debug('Writing %r to %d,%d', cell, x, y)
-            color = CELL_TO_COLOR_PAIR.get(cell, curses.color_pair(0))
-            screen.addstr(y, x, cell, color)
+            color_num = CELL_TO_COLOR_PAIR.get(cell, 0)
+            screen.addstr(y, x, cell, curses.color_pair(color_num))
             x += 1
         y += 1
 
@@ -51,15 +56,19 @@ def display_moves(screen, moves):
     screen.addstr("".join(moves))
     screen.refresh()
 
-KEY_TO_MOVES = {
+KEY_TO_MOVE = {
     curses.KEY_UP: "U",
     curses.KEY_DOWN: "D",
     curses.KEY_LEFT: "L",
     curses.KEY_RIGHT: "R",
+    ord('k'): "U",
+    ord('j'): "D",
+    ord('h'): "L",
+    ord('l'): "R",
 }
 
 def translate_key(key):
-    return KEY_TO_MOVES[key]
+    return KEY_TO_MOVE[key]
 
 def main():
     opt_parser = argparse.ArgumentParser()
@@ -78,7 +87,12 @@ def main():
 
     stdscr = curses.initscr()
     curses.start_color()
-    curses.init_pair(1, curses.COLOR_RED, curses.COLOR_WHITE)
+    curses.init_pair(1, curses.COLOR_YELLOW, curses.COLOR_BLACK)
+    curses.init_pair(2, curses.COLOR_BLUE, curses.COLOR_BLACK)
+    curses.init_pair(3, curses.COLOR_MAGENTA, curses.COLOR_BLACK)
+    curses.init_pair(4, curses.COLOR_RED, curses.COLOR_WHITE)
+    curses.init_pair(5, curses.COLOR_GREEN, curses.COLOR_BLACK)
+    curses.init_pair(6, curses.COLOR_GREEN, curses.COLOR_WHITE)
     curses.cbreak()
     curses.noecho()
 
@@ -105,7 +119,7 @@ def main():
                 break
             if c in (ord('q'), ord('Q')):
                 break
-            if c in (curses.KEY_UP, curses.KEY_DOWN, curses.KEY_LEFT, curses.KEY_RIGHT):
+            if c in KEY_TO_MOVE.keys():
                 move = translate_key(c)
                 moves.append(move)
                 my_world = update_world(move, my_world)
