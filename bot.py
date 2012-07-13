@@ -13,6 +13,7 @@ class Bot(object):
 def run_bot(bot, base_world, iterations):
     max_score = -100000
     max_moves = None
+    best_world = None
 
     for _ in range(iterations):
         the_world = base_world.copy()
@@ -32,8 +33,9 @@ def run_bot(bot, base_world, iterations):
         if the_world.score > max_score:
             max_score = the_world.score
             max_moves = moves
+            best_world = the_world.copy()
 
-    return max_score, max_moves
+    return best_world, max_score, max_moves
 
 if __name__ == "__main__":
     import world
@@ -50,7 +52,8 @@ if __name__ == "__main__":
     the_bot = Bot()
     the_world = world.read_world(args.file)
 
-    score, moves = run_bot(the_bot, the_world, args.iterations)
+    world, score, moves = run_bot(the_bot, the_world, args.iterations)
 
     print "Moves: %s" % "".join(moves)
     print "Score: %d" % score
+    world.post_score(args.file)
