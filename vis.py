@@ -23,7 +23,7 @@ def draw_world(screen, the_world):
     screen_y, screen_x = screen.getmaxyx()
     width, height = the_world.size()
 
-    world_map = reversed(the_world.map)
+    world_map = the_world.map
 
     start_x = max(0, (screen_x / 2) - (width / 2))
 
