@@ -165,9 +165,6 @@ class World(object):
         then call .update() to cause all of the boulders to fall in
         place.
         """
-        if symbol == 'A':
-            world.score += 25*world.lambdas_collected
-            raise Aborted()
         world = self.copy()
         for x, y in world.positions():
             if world.at(x, y) == ROBOT:
@@ -194,6 +191,10 @@ class World(object):
 
         for x, y in self.positions():
             world.run_cell(x, y)
+
+        if symbol == 'A':
+            world.score += 25*world.lambdas_collected
+            raise Aborted()
 
         return world
 
