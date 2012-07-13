@@ -39,7 +39,7 @@ if __name__ == "__main__":
     import world
     opt_parser = argparse.ArgumentParser()
     #opt_parser.add_argument('--verbose', '-v', dest='verbosity', default=0, action='count')
-    opt_parser.add_argument('--iterations', '-i', dest='iterations', default=1000)
+    opt_parser.add_argument('--iterations', '-i', dest='iterations', default=1000, type=int)
     opt_parser.add_argument('file')
     args = opt_parser.parse_args()
 
