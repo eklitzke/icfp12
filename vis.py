@@ -56,15 +56,19 @@ def display_moves(screen, moves):
     screen.addstr("".join(moves))
     screen.refresh()
 
-KEY_TO_MOVES = {
+KEY_TO_MOVE = {
     curses.KEY_UP: "U",
     curses.KEY_DOWN: "D",
     curses.KEY_LEFT: "L",
     curses.KEY_RIGHT: "R",
+    ord('k'): "U",
+    ord('j'): "D",
+    ord('h'): "L",
+    ord('l'): "R",
 }
 
 def translate_key(key):
-    return KEY_TO_MOVES[key]
+    return KEY_TO_MOVE[key]
 
 def main():
     opt_parser = argparse.ArgumentParser()
@@ -115,7 +119,7 @@ def main():
                 break
             if c in (ord('q'), ord('Q')):
                 break
-            if c in (curses.KEY_UP, curses.KEY_DOWN, curses.KEY_LEFT, curses.KEY_RIGHT):
+            if c in KEY_TO_MOVE.keys():
                 move = translate_key(c)
                 moves.append(move)
                 my_world = update_world(move, my_world)
