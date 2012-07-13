@@ -17,6 +17,11 @@ def draw(screen):
 
 CELL_TO_COLOR_PAIR = {
     '#': 1,
+    '\\': 2,
+    '*': 3,
+    'R': 4,
+    'L': 5,
+    'O': 6,
 }
 
 def draw_world(screen, the_world):
@@ -32,8 +37,8 @@ def draw_world(screen, the_world):
         x = start_x
         for cell in row:
             #log.debug('Writing %r to %d,%d', cell, x, y)
-            color = CELL_TO_COLOR_PAIR.get(cell, curses.color_pair(0))
-            screen.addstr(y, x, cell, color)
+            color_num = CELL_TO_COLOR_PAIR.get(cell, 0)
+            screen.addstr(y, x, cell, curses.color_pair(color_num))
             x += 1
         y += 1
 
@@ -78,7 +83,12 @@ def main():
 
     stdscr = curses.initscr()
     curses.start_color()
-    curses.init_pair(1, curses.COLOR_RED, curses.COLOR_WHITE)
+    curses.init_pair(1, curses.COLOR_YELLOW, curses.COLOR_BLACK)
+    curses.init_pair(2, curses.COLOR_BLUE, curses.COLOR_BLACK)
+    curses.init_pair(3, curses.COLOR_MAGENTA, curses.COLOR_BLACK)
+    curses.init_pair(4, curses.COLOR_RED, curses.COLOR_WHITE)
+    curses.init_pair(5, curses.COLOR_GREEN, curses.COLOR_BLACK)
+    curses.init_pair(6, curses.COLOR_GREEN, curses.COLOR_WHITE)
     curses.cbreak()
     curses.noecho()
 
