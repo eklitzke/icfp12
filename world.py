@@ -169,7 +169,7 @@ def read_world(files):
             row.append(char)
             width = max(width, col + 1)
     # invert the y-axis
-    a_map.reverse()
+    #a_map.reverse()
     # pad the map with empties
     for row in a_map:
         for _ in xrange(width - len(row)):
