@@ -35,6 +35,7 @@ def main():
         w = w.move(move)
         print str(w) + ' after moving %s' % (move,)
         print
+        print w.new_moved_rocks.rocks
 
     log.info('shutdown')
 

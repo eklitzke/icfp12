@@ -28,6 +28,9 @@ class MovedRocks(object):
     def notify(self, x, y):
         self.rocks.add((x, y))
 
+    def clear(self):
+        self.rocks.clear()
+
 class WorldEvent(Exception):
     pass
 
@@ -61,14 +64,17 @@ class World(object):
     def copy(self):
         w = World(self.robot, [row[:] for row in self.map],
                   self.remaining_lambdas, self.lambdas_collected, self.score)
+        w.old_moved_rocks = self.new_moved_rocks
         return w
 
     def translate(self, x, y):
-      real_y = len(self.map) - y - 1
-      real_x = x - 1
-      return real_x, real_y
+        """Translate logical coordinates into actual self.map coordinates."""
+        real_y = len(self.map) - y - 1
+        real_x = x - 1
+        return real_x, real_y
 
     def at(self, x, y):
+        """Get the thing at logical coordinates (x, y)"""
         real_x, real_y = self.translate(x, y)
         #print '(%s, %s) -> (%s, %s)' % (x, y, real_x, real_y)
         try:
@@ -77,6 +83,16 @@ class World(object):
             return None
 
     def update_cell(self, x, y, symbol, direction=None):
+        """Update a cell with a new symbol. This has some wrapper
+        logic to ensure that robot moves are valid, and that rock
+        movements are tracked.
+
+        Args:
+          x: the x-coordinate of the cell
+          y: the y-coordinate of the cell
+          symbol: the new symbol to place in the cell
+          direction: optional, the direction of movement
+        """
         existing = self.at(x, y)
         if symbol == ROCK:
             self.new_moved_rocks.notify(x, y)
@@ -115,12 +131,13 @@ class World(object):
         except IndexError:
             return None
         if cell == ROBOT:
-            if self.at(x, y + 1) == ROCK and self.old_moved_rocks.moved(x, y + 1):
-                raise Killed()
+            pass
         elif cell == ROCK:
             if self.at(x, y - 1) == EMPTY:
                 self.update_cell(x, y, EMPTY)
                 self.update_cell(x, y - 1, ROCK)
+            elif self.at(x, y - 1) == ROBOT and self.old_moved_rocks.moved(x, y):
+                raise Killed()
             elif (self.at(x, y - 1) == ROCK and self.at(x + 1, y) == EMPTY
                   and self.at(x + 1, y - 1) == EMPTY):
                 self.update_cell(x, y, EMPTY)
@@ -172,12 +189,12 @@ class World(object):
                 world.update_cell(robot_x, robot_y, ROBOT, symbol)
                 world.update_cell(orig_robot_x, orig_robot_y, EMPTY)
             except InvalidMove:
-                raise
+                pass
+                #raise
 
         for x, y in self.positions():
             world.run_cell(x, y)
 
-        world.old_moved_rocks = world.new_moved_rocks
         return world
 
     def __str__(self):
