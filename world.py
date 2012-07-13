@@ -76,6 +76,8 @@ class World(object):
                 assert False
 
     def run_cell(self, x, y):
+        #real_x, real_y = self.translate(x, y)
+        #print 'checking cell at logical (%d, %d), actual index is [%d][%d]' % (x, y, real_y, real_x)
         try:
             cell = self.at(x, y)
         except IndexError:
@@ -102,10 +104,10 @@ class World(object):
                 self.update_cell(x, y, OPEN)
 
     def positions(self):
-        for column in xrange(1, len(self.map) + 1):
-            _, real_y = self.translate(0, column)
-            for row in xrange(1, len(self.map[real_y]) + 1):
-                yield row, column
+        for row in xrange(1, len(self.map) + 1):
+            _, real_y = self.translate(0, row)
+            for col in xrange(1, len(self.map[real_y]) + 1):
+                yield col, row
 
 
     def move(self, symbol):
@@ -133,12 +135,8 @@ class World(object):
             robot_x += 1
         world.update_cell(robot_x, robot_y, ROBOT)
 
-
-        for column in xrange(len(world.map)):
-            _, real_y = world.translate(0, column)
-            for row in xrange(len(world.map[real_y])):
-                row = row + 1  # in taks coordinates, x is 1-based
-                world.run_cell(column, row)
+        for x, y in self.positions():
+            world.run_cell(x, y)
 
         world.old_moved_rocks = world.new_moved_rocks
         return world

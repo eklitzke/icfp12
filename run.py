@@ -27,7 +27,7 @@ def main():
     log.debug('read world: %r', w)
     print w
     print
-    for move in 'UUULLDDRRULLLUL':
+    for move in 'UUULDDLLUUL':
       w = w.move(move)
       print w
       print
