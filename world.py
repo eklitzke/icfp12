@@ -28,22 +28,37 @@ class MovedRocks(object):
     def notify(self, x, y):
         self.rocks.add((x, y))
 
+class WorldEvent(Exception):
+    pass
+
+class InvalidMove(WorldEvent):
+    pass
+
+class Killed(WorldEvent):
+    pass
+
+class Completed(WorldEvent):
+    pass
+
+class Aborted(WorldEvent):
+    pass
+
 
 class World(object):
-    def __init__(self, robot, map):
+    def __init__(self, robot, map, remaining_lambdas=0):
         self.robot = robot
         self.map = map
         self.old_moved_rocks = MovedRocks()  # rocks that moved last turn
         self.new_moved_rocks = MovedRocks()  # rocks that moved this turn
-        self.remaining_lambdas = 1
+        self.remaining_lambdas = remaining_lambdas
 
     def size(self):
         "Get a tuple of the width and the height of the map"
         return len(self.map[0]), len(self.map)
 
     def copy(self):
-        w = World(self.robot, [row[:] for row in self.map])
-        w.remaining_lambdas = self.remaining_lambdas
+        w = World(self.robot, [row[:] for row in self.map],
+                  self.remaining_lambdas)
         return w
 
     def translate(self, x, y):
@@ -68,16 +83,14 @@ class World(object):
         elif symbol == ROBOT:
             if existing == LAMBDA:
                 self.remaining_lambdas -= 1
-            elif existing == EMPTY:
+            elif existing in (EMPTY, EARTH, ROBOT):
                 pass
-            elif existing == EARTH:
-                pass
-            elif existing == WALL:
-                assert False
+            elif existing == OPEN:
+                raise Completed()
+            elif existing in (WALL, CLOSED, ROCK):
+                raise InvalidMove()
 
     def run_cell(self, x, y):
-        #real_x, real_y = self.translate(x, y)
-        #print 'checking cell at logical (%d, %d), actual index is [%d][%d]' % (x, y, real_y, real_x)
         try:
             cell = self.at(x, y)
         except IndexError:
@@ -116,24 +129,28 @@ class World(object):
         then call .update() to cause all of the boulders to fall in
         place.
         """
+        if symbol == 'A':
+            raise Aborted()
         world = self.copy()
         for x, y in world.positions():
             if world.at(x, y) == ROBOT:
-                robot_x = x
-                robot_y = y
+                orig_robot_x = robot_x = x
+                orig_robot_y = robot_y = y
         if symbol == 'U':
-            world.update_cell(robot_x, robot_y, EMPTY)
             robot_y += 1
         elif symbol == 'D':
-            world.update_cell(robot_x, robot_y, EMPTY)
             robot_y -= 1
         elif symbol == 'L':
-            world.update_cell(robot_x, robot_y, EMPTY)
             robot_x -= 1
         elif symbol == 'R':
-            world.update_cell(robot_x, robot_y, EMPTY)
             robot_x += 1
-        world.update_cell(robot_x, robot_y, ROBOT)
+
+        if orig_robot_x != robot_x or orig_robot_y != robot_y:
+            try:
+                world.update_cell(robot_x, robot_y, ROBOT)
+                world.update_cell(orig_robot_x, orig_robot_y, EMPTY)
+            except InvalidMove:
+                pass
 
         for x, y in self.positions():
             world.run_cell(x, y)
@@ -161,6 +178,7 @@ def read_world(files):
     width = 0
     height = 0
     a_map = []
+    lambdas = 0
     for row, line in enumerate(fileinput.input(files)):
         height = max(height, row + 1)
         row = []
@@ -168,6 +186,8 @@ def read_world(files):
         for col, char in enumerate(line[:-1]):
             row.append(char)
             width = max(width, col + 1)
+            if char == LAMBDA:
+                lambdas += 1
     # invert the y-axis
     #a_map.reverse()
     # pad the map with empties
@@ -178,7 +198,7 @@ def read_world(files):
     size = (width, height)
     assert len(a_map) == height
     assert len(a_map[0]) == width
-    return World(robot, a_map)
+    return World(robot, a_map, lambdas)
 
 if __name__ == '__main__':
     world = read_world(sys.argv[1:])
