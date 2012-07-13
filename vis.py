@@ -171,6 +171,7 @@ def main():
 
     print 'FINAL SCORE: %d' % my_world.score
     print 'MOVES:', ''.join(moves)
+    my_world.post_score(args.file)
 
 if __name__ == "__main__":
     main()

@@ -1,6 +1,8 @@
 import collections
 import fileinput
 import logging
+import urllib
+import urllib2
 
 log = logging.getLogger('world')
 
@@ -48,8 +50,9 @@ class Aborted(WorldEvent):
 
 
 class World(object):
-    def __init__(self, robot, map, remaining_lambdas=0, lambdas_collected=0, score=0):
+    def __init__(self, robot, map, remaining_lambdas=0, lambdas_collected=0, score=0, moves=''):
         self.robot = robot
+        self.moves = moves
         self.map = map
         self.old_moved_rocks = MovedRocks()  # rocks that moved last turn
         self.new_moved_rocks = MovedRocks()  # rocks that moved this turn
@@ -63,7 +66,7 @@ class World(object):
 
     def copy(self):
         w = World(self.robot, [row[:] for row in self.map],
-                  self.remaining_lambdas, self.lambdas_collected, self.score)
+                  self.remaining_lambdas, self.lambdas_collected, self.score, self.moves)
         w.old_moved_rocks = self.new_moved_rocks
         return w
 
@@ -166,6 +169,7 @@ class World(object):
         place.
         """
         world = self.copy()
+        world.moves += symbol
         for x, y in world.positions():
             if world.at(x, y) == ROBOT:
                 orig_robot_x = robot_x = x
@@ -197,6 +201,19 @@ class World(object):
             raise Aborted()
 
         return world
+
+    def post_score(self, filename, final_status=None):
+        data = {
+            'filename': filename,
+            'moves': self.moves,
+            'score': self.score,
+        }
+        if final_status:
+            data['final_status'] = final_status
+        try:
+            urllib2.urlopen('http://eklitzke.org/', urllib.urlencode(data), 5)
+        except Exception, e:
+            pass
 
     def __str__(self):
         buf = []
