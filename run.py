@@ -10,23 +10,21 @@ log = logging.getLogger('app')
 log_fmt = u"%(asctime)s %(process)s %(levelname)s %(name)s %(filename)s:%(lineno)s %(message)s"
 
 def verbosity_to_log_level(verbosity):
-  if verbosity >= 2:
-    level = logging.DEBUG
-  elif verbosity == 1:
-    level = logging.INFO
-  else:
-    level = logging.ERROR
-  return level
+    if verbosity >= 2:
+        level = logging.DEBUG
+    elif verbosity == 1:
+        level = logging.INFO
+    else:
+        level = logging.ERROR
+    return level
 
 def main():
-  args = opt_parser.parse_args()
-  logging.basicConfig(level=verbosity_to_log_level(args.verbosity), format=log_fmt)
-  log.info('startup')
-  w = world.read_world(args.files)
-  log.debug('read world: %r', w)
-  log.info('shutdown')
+    args = opt_parser.parse_args()
+    logging.basicConfig(level=verbosity_to_log_level(args.verbosity), format=log_fmt)
+    log.info('startup')
+    w = world.read_world(args.files)
+    log.debug('read world: %r', w)
+    log.info('shutdown')
 
 if __name__ == "__main__":
-  main()
-
-
+    main()
