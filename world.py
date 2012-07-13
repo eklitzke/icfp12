@@ -61,12 +61,14 @@ class World(object):
         self.score = score
 
     def size(self):
-        "Get a tuple of the width and the height of the map"
+        """Get a tuple of the width and the height of the map"""
         return len(self.map[0]), len(self.map)
 
     def copy(self):
+        """Make a copy of the World object."""
         w = World(self.robot, [row[:] for row in self.map],
-                  self.remaining_lambdas, self.lambdas_collected, self.score, self.moves)
+                  self.remaining_lambdas, self.lambdas_collected, self.score,
+                  self.moves)
         w.old_moved_rocks = self.new_moved_rocks
         return w
 
@@ -129,6 +131,9 @@ class World(object):
         self.map[real_y][real_x] = symbol
 
     def run_cell(self, x, y):
+        """Run through all of the rules for a cell at logical
+        coordinate (x, y).
+        """
         try:
             cell = self.at(x, y)
         except IndexError:
@@ -156,6 +161,7 @@ class World(object):
                 self.update_cell(x, y, OPEN)
 
     def positions(self):
+        """Iterate through the logical positions in order of evaluation."""
         for row in xrange(1, len(self.map) + 1):
             _, real_y = self.translate(0, row)
             for col in xrange(1, len(self.map[real_y]) + 1):
