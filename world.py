@@ -39,13 +39,7 @@ class WorldEvent(Exception):
 class InvalidMove(WorldEvent):
     pass
 
-class Killed(WorldEvent):
-    pass
-
-class Completed(WorldEvent):
-    pass
-
-class Aborted(WorldEvent):
+class GameOverError(WorldEvent):
     pass
 
 
@@ -59,6 +53,7 @@ class World(object):
         self.remaining_lambdas = remaining_lambdas
         self.lambdas_collected = lambdas_collected
         self.score = score
+        self.done = False
 
     def size(self):
         """Get a tuple of the width and the height of the map"""
@@ -110,7 +105,7 @@ class World(object):
                 pass
             elif existing == OPEN:
                 self.score += 50*self.lambdas_collected
-                raise Completed()
+                self.done = True
             elif existing in (WALL, CLOSED):
                 raise InvalidMove()
             elif existing == ROCK:
@@ -145,7 +140,8 @@ class World(object):
                 self.update_cell(x, y, EMPTY)
                 self.update_cell(x, y - 1, ROCK)
             elif self.at(x, y - 1) == ROBOT and self.old_moved_rocks.moved(x, y):
-                raise Killed()
+                self.done = True
+                self.score = 0
             elif (self.at(x, y - 1) == ROCK and self.at(x + 1, y) == EMPTY
                   and self.at(x + 1, y - 1) == EMPTY):
                 self.update_cell(x, y, EMPTY)
@@ -174,6 +170,9 @@ class World(object):
         then call .update() to cause all of the boulders to fall in
         place.
         """
+        if self.done:
+            raise GameOverError
+
         world = self.copy()
         world.moves += symbol
         for x, y in world.positions():
@@ -196,15 +195,14 @@ class World(object):
                 world.update_cell(robot_x, robot_y, ROBOT, symbol)
                 world.update_cell(orig_robot_x, orig_robot_y, EMPTY)
             except InvalidMove:
-                pass
-                #raise
+                raise
 
         for x, y in self.positions():
             world.run_cell(x, y)
 
         if symbol == 'A':
             world.score += 25*world.lambdas_collected
-            raise Aborted()
+            world.done = True
 
         return world
 

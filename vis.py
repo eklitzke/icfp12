@@ -100,6 +100,7 @@ def main():
     my_world = world.read_world(args.file)
     #pprint.pprint(my_world)
 
+    worlds = []
     moves = []
 
     stdscr = curses.initscr()
@@ -131,7 +132,6 @@ def main():
     try:
         while True:
             move = None
-            log.debug("Draw Loop")
             display_moves(control_win, moves)
             display_score(control_win, my_world.score, my_world.lambdas_collected)
             draw_world(world_win, my_world)
@@ -145,21 +145,29 @@ def main():
 
             if c in (ord('q'), ord('Q')):
                 break
-            if c in KEY_TO_MOVE.keys():
+            if c in KEY_TO_MOVE.keys() and not my_world.done:
                 move = translate_key(c)
 
+            if c == ord('u') and moves:
+                my_world = worlds.pop()
+                moves.pop()
+
             if move:
-                moves.append(move)
+                worlds.append(my_world)
+
                 try:
                     my_world = update_world(move, my_world)
-                except world.Aborted:
-                    break
+                    moves.append(move)
                 except world.InvalidMove:
+                    my_world = worlds.pop()
                     display_status(control_win, 'Invalid move')
                     continue
+
                 display_status(control_win, '')
             else:
                 log.debug("Unused key, %r", curses.keyname(c))
+            if my_world.done:
+                display_status(control_win, 'done')
 
     except world.WorldEvent, e:
         world_event = e

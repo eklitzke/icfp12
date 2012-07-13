@@ -43,17 +43,13 @@ def run_bot(bot, base_world, iterations):
     for _ in range(iterations):
         the_world = base_world.copy()
         moves = []
-        while True:
+        while not the_world.done:
             next_move = the_bot.pick_move(the_world)
             try:
                 the_world = the_world.move(next_move)
-            except (world.Aborted, world.Killed):
                 moves.append(next_move)
-                break
             except world.InvalidMove:
                 continue
-            else:
-                moves.append(next_move)
 
         if the_world.score > max_score:
             max_score = the_world.score
