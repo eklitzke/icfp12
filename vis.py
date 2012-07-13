@@ -125,6 +125,7 @@ def main():
     world_win.border()
     world_win.refresh()
 
+    world_event = None
     try:
         while True:
             log.debug("Draw Loop")
@@ -148,9 +149,14 @@ def main():
             else:
                 log.debug("Unused key, %r", curses.keyname(c))
 
+    except world.WorldEvent, e:
+        world_event = e
     finally:
         curses.nocbreak(); stdscr.keypad(0); curses.echo()
         curses.endwin()
+        if world_event is not None:
+            print 'ended with event %r' % (e.__class__.__name__,)
+        print "%d %s" % (my_world.score, "".join(moves))
 
 if __name__ == "__main__":
     main()
