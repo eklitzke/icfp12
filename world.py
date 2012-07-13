@@ -68,32 +68,38 @@ class World(object):
         elif symbol == ROBOT:
             if existing == LAMBDA:
                 self.remaining_lambdas -= 1
+            elif existing == EMPTY:
+                pass
+            elif existing == EARTH:
+                pass
+            elif existing == WALL:
+                assert False
 
     def run_cell(self, x, y):
         try:
             cell = self.at(x, y)
         except IndexError:
             return None
-            if cell == ROBOT:
-                if self.at(x, y + 1) == ROCK and self.old_moved_rocks.moved(x, y + 1):
-                    self.killed = True
-                elif cell == ROCK:
-                    if self.at(x, y - 1) == EMPTY:
-                        self.update_cell(x, y, EMPTY)
-                        self.update_cell(x, y - 1, ROCK)
-                    elif (self.at(x, y - 1) == ROCK and self.at(x + 1, y) == EMPTY
-                          and self.at(x + 1, y - 1) == EMPTY):
-                        self.update_cell(x, y, EMPTY)
-                        self.update_cell(x + 1, y - 1, ROCK)
-                    elif (self.at(x, y - 1) == ROCK and (not_empty(self.at(x + 1, y)) or not_empty(self.at(x + 1, y - 1))) and self.at(x - 1, y) == EMTPY and self.at(x - 1, y - 1) == EMPTY):
-                        self.update_cell(x, y, EMPTY)
-                        self.update_cell(x - 1, y - 1, ROCK)
-                    elif self.at(x, y -1) == LAMBDA and self.at(x + 1, y) == EMPTY and self.at(x + 1, y - 1) == EMPTY:
-                        self.update_cell(x, y, EMPTY)
-                        self.update_cell(x + 1, y - 1, ROCK)
-                    elif cell == CLOSED:
-                        if not self.remaining_lambdas:
-                            self.update_cell(x, y, OPEN)
+        if cell == ROBOT:
+            if self.at(x, y + 1) == ROCK and self.old_moved_rocks.moved(x, y + 1):
+                self.killed = True
+        elif cell == ROCK:
+            if self.at(x, y - 1) == EMPTY:
+                self.update_cell(x, y, EMPTY)
+                self.update_cell(x, y - 1, ROCK)
+            elif (self.at(x, y - 1) == ROCK and self.at(x + 1, y) == EMPTY
+                  and self.at(x + 1, y - 1) == EMPTY):
+                self.update_cell(x, y, EMPTY)
+                self.update_cell(x + 1, y - 1, ROCK)
+            elif (self.at(x, y - 1) == ROCK and (not_empty(self.at(x + 1, y)) or not_empty(self.at(x + 1, y - 1))) and self.at(x - 1, y) == EMTPY and self.at(x - 1, y - 1) == EMPTY):
+                self.update_cell(x, y, EMPTY)
+                self.update_cell(x - 1, y - 1, ROCK)
+            elif self.at(x, y -1) == LAMBDA and self.at(x + 1, y) == EMPTY and self.at(x + 1, y - 1) == EMPTY:
+                self.update_cell(x, y, EMPTY)
+                self.update_cell(x + 1, y - 1, ROCK)
+        elif cell == CLOSED:
+            if not self.remaining_lambdas:
+                self.update_cell(x, y, OPEN)
 
     def positions(self):
         for column in xrange(1, len(self.map) + 1):
@@ -116,19 +122,16 @@ class World(object):
         if symbol == 'U':
             world.update_cell(robot_x, robot_y, EMPTY)
             robot_y += 1
-            world.update_cell(robot_x, robot_y, ROBOT)
         elif symbol == 'D':
             world.update_cell(robot_x, robot_y, EMPTY)
             robot_y -= 1
-            world.update_cell(robot_x, robot_y, ROBOT)
         elif symbol == 'L':
             world.update_cell(robot_x, robot_y, EMPTY)
             robot_x -= 1
-            world.update_cell(robot_x, robot_y, ROBOT)
         elif symbol == 'R':
             world.update_cell(robot_x, robot_y, EMPTY)
             robot_x += 1
-            world.update_cell(robot_x, robot_y, ROBOT)
+        world.update_cell(robot_x, robot_y, ROBOT)
 
 
         for column in xrange(len(world.map)):
@@ -144,6 +147,7 @@ class World(object):
         buf = []
         for row in self.map:
             buf.append(''.join(row))
+        buf[-1] += ' %d lambdas left' % (self.remaining_lambdas,)
         return '\n'.join(buf)
 
     def __repr__(self):
