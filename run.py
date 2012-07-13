@@ -25,12 +25,16 @@ def main():
     w = world.read_world(args.files)
     w.remaining_lambdas = 3
     log.debug('read world: %r', w)
+    print 'STARTING MAP'
     print w
     print
-    for move in 'UUULDDLLUUL':
-      w = w.move(move)
-      print w
-      print
+    print '~~~~~~~~~~~~~~~~~'
+    print
+
+    for move in 'DDDLUULLDDL':
+        w = w.move(move)
+        print str(w) + ' after moving %s' % (move,)
+        print
 
     log.info('shutdown')
 
