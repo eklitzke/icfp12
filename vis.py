@@ -56,6 +56,13 @@ def display_moves(screen, moves):
     screen.addstr("".join(moves))
     screen.refresh()
 
+def display_status(screen, status):
+    screen.move(2,1)
+    screen.clrtoeol()
+    screen.addstr(status)
+    screen.refresh()
+
+
 KEY_TO_MOVE = {
     curses.KEY_UP: "U",
     curses.KEY_DOWN: "D",
@@ -124,7 +131,12 @@ def main():
             if c in KEY_TO_MOVE.keys():
                 move = translate_key(c)
                 moves.append(move)
-                my_world = update_world(move, my_world)
+                try:
+                    my_world = update_world(move, my_world)
+                except world.InvalidMove:
+                    display_status(control_win, 'Invalid move')
+                    continue
+                display_status(control_win, '')
             else:
                 log.debug("Unused key, %r", curses.keyname(c))
 

@@ -164,7 +164,7 @@ class World(object):
                 world.update_cell(robot_x, robot_y, ROBOT, symbol)
                 world.update_cell(orig_robot_x, orig_robot_y, EMPTY)
             except InvalidMove:
-                pass
+                raise
 
         for x, y in self.positions():
             world.run_cell(x, y)
