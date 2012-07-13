@@ -93,7 +93,7 @@ class World(object):
                   and self.at(x + 1, y - 1) == EMPTY):
                 self.update_cell(x, y, EMPTY)
                 self.update_cell(x + 1, y - 1, ROCK)
-            elif (self.at(x, y - 1) == ROCK and (not_empty(self.at(x + 1, y)) or not_empty(self.at(x + 1, y - 1))) and self.at(x - 1, y) == EMTPY and self.at(x - 1, y - 1) == EMPTY):
+            elif (self.at(x, y - 1) == ROCK and (not_empty(self.at(x + 1, y)) or not_empty(self.at(x + 1, y - 1))) and self.at(x - 1, y) == EMPTY and self.at(x - 1, y - 1) == EMPTY):
                 self.update_cell(x, y, EMPTY)
                 self.update_cell(x - 1, y - 1, ROCK)
             elif self.at(x, y -1) == LAMBDA and self.at(x + 1, y) == EMPTY and self.at(x + 1, y - 1) == EMPTY:
