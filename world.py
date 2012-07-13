@@ -77,7 +77,6 @@ class World(object):
     def update_cell(self, x, y, symbol):
         real_x, real_y = self.translate(x, y)
         existing = self.map[real_y][real_x]
-        self.map[real_y][real_x] = symbol
         if symbol == ROCK:
             self.new_moved_rocks.notify(x, y)
         elif symbol == ROBOT:
@@ -89,6 +88,7 @@ class World(object):
                 raise Completed()
             elif existing in (WALL, CLOSED, ROCK):
                 raise InvalidMove()
+        self.map[real_y][real_x] = symbol
 
     def run_cell(self, x, y):
         try:
