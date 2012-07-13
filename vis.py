@@ -157,6 +157,7 @@ def main():
         if world_event is not None:
             print 'ended with event %r' % (e.__class__.__name__,)
         print "%d %s" % (my_world.score, "".join(moves))
+        my_world.post_score(args.file)
 
 if __name__ == "__main__":
     main()
