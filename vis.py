@@ -142,6 +142,8 @@ def main():
                 moves.append(move)
                 try:
                     my_world = update_world(move, my_world)
+                except world.Aborted:
+                    break
                 except world.InvalidMove:
                     display_status(control_win, 'Invalid move')
                     continue
@@ -156,7 +158,9 @@ def main():
         curses.endwin()
         if world_event is not None:
             print 'ended with event %r' % (e.__class__.__name__,)
-        print "%d %s" % (my_world.score, "".join(moves))
+
+    print 'FINAL SCORE: %d' % my_world.score
+    print 'MOVES:', ''.join(moves)
 
 if __name__ == "__main__":
     main()
