@@ -32,16 +32,26 @@ def draw_world(screen, world):
     screen.move(screen_y-1, screen_x-1)
     screen.refresh()
 
-def update_world(key, world, window=None):
-    log.info("Received %r", curses.keyname(key))
-
-    if window:
-        window.move(1,1)
-        window.clrtoeol()
-        window.addstr(curses.keyname(key))
-        window.refresh()
-
+def update_world(move, world):
+    log.info("Received move %r", move)
     return world
+
+def display_moves(screen, moves):
+    screen.move(1,1)
+    screen.clrtoeol()
+    screen.addstr("Moves:")
+    screen.addstr("".join(moves))
+    screen.refresh()
+
+KEY_TO_MOVES = {
+    curses.KEY_UP: "U",
+    curses.KEY_DOWN: "D",
+    curses.KEY_LEFT: "L",
+    curses.KEY_RIGHT: "R",
+}
+
+def translate_key(key):
+    return KEY_TO_MOVES[key]
 
 def main():
     opt_parser = argparse.ArgumentParser()
@@ -53,6 +63,7 @@ def main():
     logging.basicConfig(level=logging.DEBUG, format=log_fmt, filename="vis.log")
     log.debug("Starting vis")
 
+    moves = []
     map_load = []
     with io.open(args.file, 'r') as file:
         for line in file:
@@ -79,6 +90,7 @@ def main():
     try:
         while True:
             log.debug("Draw Loop")
+            display_moves(control_win, moves)
             draw_world(world_win, map_load)
             c = control_win.getch()
             if c == -1:
@@ -86,7 +98,9 @@ def main():
             if c in (ord('q'), ord('Q')):
                 break
             if c in (curses.KEY_UP, curses.KEY_DOWN, curses.KEY_LEFT, curses.KEY_RIGHT):
-                map_load = update_world(c, map_load, window=control_win)
+                move = translate_key(c)
+                moves.append(move)
+                map_load = update_world(move, map_load)
             else:
                 log.debug("Unused key, %r", curses.keyname(c))
 
