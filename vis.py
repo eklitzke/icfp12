@@ -7,6 +7,7 @@ import pprint
 import logging
 
 import world
+import bot
 
 log = logging.getLogger(__name__)
 
@@ -125,9 +126,11 @@ def main():
     world_win.border()
     world_win.refresh()
 
+    the_bot = None
     world_event = None
     try:
         while True:
+            move = None
             log.debug("Draw Loop")
             display_moves(control_win, moves)
             display_score(control_win, my_world.score, my_world.lambdas_collected)
@@ -135,10 +138,17 @@ def main():
             c = control_win.getch()
             if c == -1:
                 break
+            if c == ord('b'):
+                if not the_bot:
+                    the_bot = bot.Bot()
+                move = the_bot.pick_move(my_world)
+
             if c in (ord('q'), ord('Q')):
                 break
             if c in KEY_TO_MOVE.keys():
                 move = translate_key(c)
+
+            if move:
                 moves.append(move)
                 try:
                     my_world = update_world(move, my_world)
