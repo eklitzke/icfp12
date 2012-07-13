@@ -52,16 +52,23 @@ def update_world(move, the_world):
 def display_moves(screen, moves):
     screen.move(1,1)
     screen.clrtoeol()
-    screen.addstr("Moves:")
+    screen.addstr("Moves: ")
     screen.addstr("".join(moves))
     screen.refresh()
 
 def display_status(screen, status):
-    screen.move(2,1)
+    screen.move(3,1)
     screen.clrtoeol()
     screen.addstr(status)
     screen.refresh()
 
+def display_score(screen, score, collected):
+    screen.move(2,1)
+    screen.clrtoeol()
+    screen.addstr('Score: %d' % score)
+    screen.move(2, 12)
+    screen.addstr('Collected: %d' % collected)
+    screen.refresh()
 
 KEY_TO_MOVE = {
     curses.KEY_UP: "U",
@@ -106,7 +113,7 @@ def main():
     curses.noecho()
 
     screen_y, screen_x = stdscr.getmaxyx()
-    control_win = curses.newwin(4, screen_x, 0, 0)
+    control_win = curses.newwin(5, screen_x, 0, 0)
 
     control_win.keypad(1)
     control_win.timeout(-1)
@@ -114,7 +121,7 @@ def main():
     control_win.border()
     control_win.refresh()
 
-    world_win = curses.newwin(screen_y - 4, screen_x, 4, 0)
+    world_win = curses.newwin(screen_y - 5, screen_x, 5, 0)
     world_win.border()
     world_win.refresh()
 
@@ -122,6 +129,7 @@ def main():
         while True:
             log.debug("Draw Loop")
             display_moves(control_win, moves)
+            display_score(control_win, my_world.score, my_world.lambdas_collected)
             draw_world(world_win, my_world)
             c = control_win.getch()
             if c == -1:

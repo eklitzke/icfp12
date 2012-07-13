@@ -45,12 +45,14 @@ class Aborted(WorldEvent):
 
 
 class World(object):
-    def __init__(self, robot, map, remaining_lambdas=0):
+    def __init__(self, robot, map, remaining_lambdas=0, lambdas_collected=0, score=0):
         self.robot = robot
         self.map = map
         self.old_moved_rocks = MovedRocks()  # rocks that moved last turn
         self.new_moved_rocks = MovedRocks()  # rocks that moved this turn
         self.remaining_lambdas = remaining_lambdas
+        self.lambdas_collected = lambdas_collected
+        self.score = score
 
     def size(self):
         "Get a tuple of the width and the height of the map"
@@ -58,7 +60,7 @@ class World(object):
 
     def copy(self):
         w = World(self.robot, [row[:] for row in self.map],
-                  self.remaining_lambdas)
+                  self.remaining_lambdas, self.lambdas_collected, self.score)
         return w
 
     def translate(self, x, y):
@@ -81,9 +83,12 @@ class World(object):
         elif symbol == ROBOT:
             if existing == LAMBDA:
                 self.remaining_lambdas -= 1
+                self.lambdas_collected += 1
+                self.score += 25
             elif existing in (EMPTY, EARTH, ROBOT):
                 pass
             elif existing == OPEN:
+                self.score += 50*self.lambdas_collected
                 raise Completed()
             elif existing in (WALL, CLOSED):
                 raise InvalidMove()
@@ -144,6 +149,7 @@ class World(object):
         place.
         """
         if symbol == 'A':
+            world.score += 25*world.lambdas_collected
             raise Aborted()
         world = self.copy()
         for x, y in world.positions():
@@ -158,6 +164,8 @@ class World(object):
             robot_x -= 1
         elif symbol == 'R':
             robot_x += 1
+
+        world.score -= 1 # should this also happen if you wait?
 
         if orig_robot_x != robot_x or orig_robot_y != robot_y:
             try:
