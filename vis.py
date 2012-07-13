@@ -97,7 +97,7 @@ def main():
     log.debug("Starting vis")
 
     my_world = world.read_world(args.file)
-    pprint.pprint(my_world)
+    #pprint.pprint(my_world)
 
     moves = []
 
