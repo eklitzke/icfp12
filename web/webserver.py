@@ -41,7 +41,7 @@ class MainHandler(BaseHandler):
 
     def get(self):
         self.set_header('Content-Type', 'text/plain')
-        self.write(','.join(self.columns))
+        self.write(','.join(self.columns) + '\n')
         for row in self.get_scores():
             vals = [row[k] for k in self.columns]
             self.write(','.join(map(str, vals)) + '\n')
@@ -58,7 +58,7 @@ class MainHandler(BaseHandler):
         if self.cursor.fetchone() == None:
             self.cursor.execute(
                 'INSERT INTO scores (filename, score, moves, final_status, bot_name) '
-                'VALUES (?, ?, ?, ?)', (filename, score, moves, final_status, bot_name))
+                'VALUES (?, ?, ?, ?, ?)', (filename, score, moves, final_status, bot_name))
         conn.commit()
 
 
