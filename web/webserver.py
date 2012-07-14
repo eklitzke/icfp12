@@ -28,7 +28,7 @@ class BaseHandler(tornado.web.RequestHandler):
     def cursor(self):
         if not hasattr(self, '_cursor'):
             self._cursor = conn.cursor()
-            return self._cursor
+        return self._cursor
 
     def get_scores(self):
         for row in self.cursor.execute(
