@@ -89,11 +89,7 @@ def find_route(world, to, origin):
     return CMD_STRING
 
 def get_robot(the_world):
-    for (x, y) in the_world.positions():
-        cell = the_world.at(x, y)
-        if cell == 'R':
-            robot = (x,y)
-    return robot
+    return the_world.robot
 
 def random_lambda(the_world):
     lambdas = []

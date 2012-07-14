@@ -1,4 +1,5 @@
 #!/bin/bash
 set -eu
-~/pypy-1.8/bin/pypy bot.py --name=nearbot -i 500 $1 | awk '/^Moves/ { print $2}' | python vis.py --stdin $1
+
+pypy bot.py --name=nearbot -i 500 $1 | awk '/^Moves/ { print $2}' | python vis.py --stdin $1
 
