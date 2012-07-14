@@ -1,0 +1,23 @@
+#!/bin/bash
+#
+# Make a tarball for submission.
+
+set -eu
+
+start_dir=$PWD
+tmpdir=$(mktemp -d)
+pushd $tmpdir
+mkdir src
+cp -a ${start_dir}/*.py src
+cp -a ${start_dir}/*.py .
+cp -a ${start_dir}/maps .    # for testing tgzs
+cp -a ${start_dir}/lifter .
+cp -a ${start_dir}/PACKAGES-TESTING .
+cp -a ${start_dir}/README .
+
+echo -e "#!/bin/bash\ntrue" > install
+chmod 755 install
+popd
+
+tar -czf ./icfp-96695680.tgz -C $tmpdir .
+

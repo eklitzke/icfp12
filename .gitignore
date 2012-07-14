@@ -1,3 +1,7 @@
 *.py[co]
 *~
 *.sw[nop]
+*.tgz
+*.db
+*.log
+*.[oa]

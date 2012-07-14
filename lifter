@@ -1,0 +1,3 @@
+#!/bin/bash
+PY=python2.7
+$PY bot.py --name=nearbot --time-based=150 /dev/stdin
