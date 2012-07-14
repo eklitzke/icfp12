@@ -141,7 +141,6 @@ class World(object):
                 self.update_cell(x, y - 1, ROCK)
             elif self.at(x, y - 1) == ROBOT and self.old_moved_rocks.moved(x, y):
                 self.done = True
-                self.score = 0
             elif (self.at(x, y - 1) == ROCK and self.at(x + 1, y) == EMPTY
                   and self.at(x + 1, y - 1) == EMPTY):
                 self.update_cell(x, y, EMPTY)
@@ -205,6 +204,20 @@ class World(object):
             world.done = True
 
         return world
+
+    def valid_commands(self):
+        result = []
+        if self.done:
+            return result
+        result.append('W')
+        for cmd in 'UDLR':
+            # HACK, optimize me
+            try:
+                _ = self.move(cmd)
+            except InvalidMove:
+                continue
+            result.append(cmd)
+        return result
 
     def post_score(self, filename, final_status=None):
         data = {
