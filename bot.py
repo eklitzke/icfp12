@@ -7,6 +7,8 @@ import os
 import signal
 import sys
 
+from actions import get_actions
+
 MOVE_COMMANDS = ["U", "D", "L", "R", "A", "W"]
 
 log = logging.getLogger(__name__)
@@ -15,17 +17,17 @@ def find_route(world, to, origin):
     """Basic A* route finding, to/origin are (x,y) tuples
        world is an instance of World.
     """
-    def _manhatten_distance(to):
-        return abs(to[0]-origin[0]) + abs(to[1]-origin[1])
+    def _manhattan_distance(to):
+        return abs(to[0] - origin[0]) + abs(to[1] - origin[1])
 
     start = tuple(origin)
     open_blocks = {start: (9999,9999,9999,None)}  # FGH
     closed_blocks = {}
-    while 1:
+    while True:
         # Get min node:
         current = None
         f_max = 10000000
-        for k,v in open_blocks.items():
+        for k, v in open_blocks.iteritems():
             if k in closed_blocks:
                 continue
             if v[0] < f_max:
@@ -50,13 +52,13 @@ def find_route(world, to, origin):
                 return
             if block and block not in "#*L" and new not in closed_blocks:
                 if new not in open_blocks:
-                    h = _manhatten_distance(new)
+                    h = _manhattan_distance(new)
                     g = scores.get(block, 5)
                     open_blocks[new] = (g+h, g, h, current)
                 else:
                     g = scores.get(block, 5)
                     if g < open_blocks[new][1]:
-                        h = _manhatten_distance(new)
+                        h = _manhattan_distance(new)
                         open_blocks[new] = (g+h, g, h, current)
 
         _think((current[0], current[1]+1))  # Up
@@ -65,7 +67,7 @@ def find_route(world, to, origin):
         _think((current[0]-1, current[1]))  # Right
 
         if to in closed_blocks:
-            break  # Not guarenteed optimal to break on this
+            break  # Not guaranteed optimal to break on this
 
     # Walk Backwards to get the actual route
     cells = [to]
@@ -89,7 +91,6 @@ def get_robot(the_world):
             robot = (x,y)
     return robot
 
-
 def random_lambda(the_world):
     lambdas = []
     for (x, y) in the_world.positions():
@@ -101,9 +102,10 @@ def random_lambda(the_world):
     return random.choice(lambdas)
 
 
-from actions import get_actions
 class NearBot(object):
+
     name = "nearbot"
+
     def __init__(self):
         self.route = []
 
