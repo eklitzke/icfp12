@@ -75,6 +75,36 @@ def find_route(world, to, origin):
         last_r = r
     return CMD_STRING
 
+def get_robot(the_world):
+    for (x, y) in the_world.positions():
+        cell = the_world.at(x, y)
+        if cell == 'R':
+            robot = (x,y)
+    return robot
+
+class NearBot(object):
+    name = "nearbot"
+    def __init__(self):
+        self.route = []
+
+    def pick_move(self, the_world):
+        # We have a plan
+        if self.route:
+            return self.route.pop(0)
+        
+        # Find the nearest interesting thing and try to get there
+        robot = get_robot(the_world)
+        target, d = nearest_lambda(the_world)        
+        if not target:
+            target, d= nearest_lift(the_world)
+
+        cmdlist = find_route(the_world, target, robot)
+        if cmdlist:
+            self.route = list(cmdlist)
+            return self.route.pop(0)
+        # No Route found, give up
+        return "A"
+
 class Bot(object):
     def pick_move(self, the_world):
         raise NotImplementedError
