@@ -1,10 +1,11 @@
 import copy
-import sys
 import collections
 import hashlib
 import fileinput
 import logging
 import re
+import string
+import sys
 import urllib
 import urllib2
 
@@ -19,6 +20,8 @@ CLOSED = 'L'
 OPEN = 'O'
 EARTH = '.'
 EMPTY = ' '
+TRAMPOLINES = string.uppercase[:9]
+TARGETS = string.digits
 
 # Commands / Directions
 LEFT = 'L'
@@ -46,17 +49,34 @@ class InvalidMove(WorldEvent):
     pass
 
 class World(object):
+    """The world state
+
+    Instance Variables:
+    map -- an array of map symbols indexed like [y][x] where (x, y) is bottom left offset coordinate, 0-indexed
+    in_lift -- true if we are in the lift false otherwise
+    lambdas_collected -- the number of lambdas collected
+    num_moves -- the number of moves we have made so far
+    remaining_lambdas -- the remaining number of lambdas to be collected
+    robot -- the (x, y) offset (from the bottom left) off the robot
+    state -- the state of the world.  one of RUNNING, FLOODED, KILLED, ABORTED
+    water -- the water level: -1 => no water, 0 => y==0 has water in it, ...
+    flooding -- if greater than 0, the number of moves required to increase the water level
+    waterproof -- the number of turns the robot may survive in water
+    trampolines -- a mapping from a source (x, y) coordinate to a destination (x, y) coordinate where (x, y) is an offset from the bottom left, 0-indexed
+    underwater -- the number of moves the robot has made while underwater
+    """
     def __init__(self, map,
-            in_lift=False, # are we in the lift
-            lambdas_collected=0, # the number of lambdas collected
-            num_moves=0, # the number of moves we have made so far.
-            remaining_lambdas=None, # the number of remaining lambdas
-            robot=None, # the robot position (cached)
-            state=RUNNING, # the default state is running
-            water=None, # The water level, -1 => no water, 0 => water at level 0
-            flooding=None, # The flooding rate
-            waterproof=None, # The number of moves allowed to be underwater
-            underwater=0): # The number of moves spent underwater
+            in_lift=False,
+            lambdas_collected=0,
+            num_moves=0,
+            remaining_lambdas=None,
+            robot=None,
+            state=RUNNING,
+            water=None,
+            flooding=None,
+            waterproof=None,
+            underwater=0,
+            trampolines=None):
         self.in_lift = in_lift
         self.lambdas_collected = lambdas_collected
         self.map = map
@@ -86,6 +106,9 @@ class World(object):
                 if map[y][x] == LAMBDA:
                     remaining_lambdas += 1
         self.remaining_lambdas = remaining_lambdas
+        if trampolines is None:
+            trampolines = {}
+        self.trampolines = trampolines
 
     def is_done(self):
         return self.state != RUNNING
@@ -124,7 +147,8 @@ class World(object):
                 water=self.water,
                 flooding=self.flooding,
                 waterproof=self.waterproof,
-                underwater=self.underwater)
+                underwater=self.underwater,
+                trampolines=self.trampolines)
 
     def at(self, x, y):
         """Get the thing at logical coordinates (x, y)
@@ -326,9 +350,15 @@ class World(object):
         return '\n'.join(buf)
 
     def __repr__(self):
-        return u'World(robot=%r, map=%r, in_lift=%r)' % (self.robot, self.map, self.in_lift)
+        return (u'World(robot=%(robot)r, map=%(map)r, in_lift=%(in_lift)r, '
+                u'trampolines=%(trampolines)r, water=%(water)r, '
+                u'flooding=%(flooding)r, waterproof=%(waterproof)r,'
+                u'lambdas_collected=%(lambdas_collected)r, num_moves=%(num_moves)r'
+                u' underwater=%(underwater)r)' % self.__dict__)
 
 _ext_pat = re.compile(r"^(.+?)\s+(\d+)$")
+# e.g. Trampoline A targets 1
+_tramp_pat = re.compile(r"^Trampoline ([A-Za-z]) targets (\d+)$")
 
 def read_world(files):
     """Read a world state from a sequence of files or stdin"""
@@ -340,6 +370,7 @@ def read_world(files):
     waterproof = None
     water = None
     flooding = None
+    trampoline_keys = {}
     for row, line in enumerate(fileinput.input(files)):
         line = line.strip()
         if line == '':
@@ -356,7 +387,10 @@ def read_world(files):
                     lambdas += 1
         else:
             match = _ext_pat.match(line)
-            if match:
+            tramp_match = _tramp_pat.match(line)
+            if tramp_match:
+                trampoline_keys[tramp_match.group(1)] = tramp_match.group(2)
+            elif match:
                 command = match.group(1).lower()
                 val = int(match.group(2))
                 if command == "water":
@@ -375,6 +409,14 @@ def read_world(files):
     for row in a_map:
         for _ in xrange(width - len(row)):
             row.append(EMPTY)
+    trampolines = {}
+    for src, dst in trampoline_keys.items():
+        src_pos = search_map_for_symbol(a_map, src)
+        dst_pos = search_map_for_symbol(a_map, dst)
+        assert src_pos
+        assert dst_pos
+        trampolines[src_pos] = dst_pos
+
     robot = (None, None)
     size = (width, height)
     assert len(a_map) == height
@@ -382,7 +424,16 @@ def read_world(files):
     return World(a_map,
             water=water,
             flooding=flooding,
-            waterproof=waterproof)
+            waterproof=waterproof,
+            trampolines=trampolines)
+
+def search_map_for_symbol(a_map, sym):
+    "Search the map for a symbol and return the position"
+    for y, row in enumerate(a_map):
+        for x, c in enumerate(row):
+            if c == sym:
+                return (x, y)
+
 
 if __name__ == '__main__':
     world = read_world(sys.argv[1:])
