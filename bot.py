@@ -50,7 +50,7 @@ def find_route(world, to, origin):
             except IndexError:
                 # we tried to think of a position that was out-of-bounds
                 return
-            if block and block not in "#*L" and new not in closed_blocks:
+            if block and block not in "#*L123456789" and new not in closed_blocks:
                 if new not in open_blocks:
                     h = _manhattan_distance(new)
                     g = scores.get(block, 5)
