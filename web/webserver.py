@@ -1,3 +1,4 @@
+import json
 import optparse
 import tornado.ioloop
 import tornado.web
@@ -32,7 +33,7 @@ class BaseHandler(tornado.web.RequestHandler):
     def get_scores(self):
          for row in self.cursor.execute(
                 'SELECT ' + ', '.join(self.columns) +
-                'FROM scores ORDER BY score DESC'):
+                'FROM scores ORDER BY id DESC'):
             yield dict(zip(columns, row))
 
 
@@ -59,6 +60,13 @@ class MainHandler(BaseHandler):
                 'INSERT INTO scores (filename, score, moves, final_status, bot_name) '
                 'VALUES (?, ?, ?, ?)', (filename, score, moves, final_status, bot_name))
         conn.commit()
+
+class JSONHandler(BaseHandler):
+
+    def get(self):
+        self.set_header('Content-Type', 'application/json')
+        data = list(self.get_scores())
+        self.write(json.dumps(data))
 
 
 if __name__ == "__main__":
