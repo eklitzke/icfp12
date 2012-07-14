@@ -29,7 +29,7 @@ def draw_world(screen, the_world):
     screen_y, screen_x = screen.getmaxyx()
     width, height = the_world.size()
 
-    world_map = the_world.map
+    world_map = reversed(the_world.map)
 
     start_x = max(0, (screen_x / 2) - (width / 2))
 
@@ -131,9 +131,10 @@ def main():
     world_event = None
     try:
         while True:
+            log.info(my_world)
             move = None
             display_moves(control_win, moves)
-            display_score(control_win, my_world.score, my_world.lambdas_collected)
+            display_score(control_win, my_world.score(), my_world.lambdas_collected)
             draw_world(world_win, my_world)
             c = control_win.getch()
             if c == -1:
@@ -145,14 +146,14 @@ def main():
 
             if c in (ord('q'), ord('Q')):
                 break
-            if c in KEY_TO_MOVE.keys() and not my_world.done:
+            if c in KEY_TO_MOVE.keys() and not my_world.is_done():
                 move = translate_key(c)
 
             if c == ord('u') and moves:
                 my_world = worlds.pop()
                 moves.pop()
 
-            if move:
+            if move and move in my_world.valid_moves():
                 worlds.append(my_world)
 
                 try:
@@ -166,8 +167,9 @@ def main():
                 display_status(control_win, '')
             else:
                 log.debug("Unused key, %r", curses.keyname(c))
-            if my_world.done:
+            if my_world.is_done():
                 display_status(control_win, 'done')
+                break
 
     except world.WorldEvent, e:
         world_event = e
@@ -177,9 +179,9 @@ def main():
         if world_event is not None:
             print 'ended with event %r' % (e.__class__.__name__,)
 
-    print 'FINAL SCORE: %d' % my_world.score
+    print 'FINAL SCORE: %d' % my_world.score()
     print 'MOVES:', ''.join(moves)
-    my_world.post_score(args.file)
+    my_world.post_score(moves, args.file)
 
 if __name__ == "__main__":
     main()
