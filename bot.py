@@ -101,6 +101,15 @@ class NearBot(object):
 
     def pick_move(self, the_world):
         # We have a plan
+        robot = get_robot(the_world)
+        if the_world.at(robot[0]+1, robot[1]) == "*" and the_world.at(robot[0]+2, robot[1]) == " " and random.random() > 0.6:
+            self.route = []
+            return "R"
+
+        if the_world.at(robot[0]-1, robot[1]) == "*" and the_world.at(robot[0]-2, robot[1]) == " " and random.random() > 0.6:
+            self.route = []
+            return "L"
+
         if self.route:
             return self.route.pop(0)
         
