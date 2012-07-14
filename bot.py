@@ -325,6 +325,6 @@ if __name__ == "__main__":
         def on_finish(world, score, moves):
             print "Moves: %s" % "".join(moves)
             print "Score: %d (%d/%d)" % (score, world.lambdas_collected, world.remaining_lambdas)
-            world.post_score(moves, args.file)
+            world.post_score(moves, args.file, args.name)
             sys.exit(0)
         run_bot(the_bot, the_world, args.iterations, on_finish)
