@@ -330,6 +330,8 @@ class World(object):
             self.state = REACHED_LIFT
 
     def post_score(self, moves, filename, final_status=None):
+        if isinstance(moves, list):
+            moves = ''.join(moves)
         data = {
             'filename': filename,
             'moves': moves,
