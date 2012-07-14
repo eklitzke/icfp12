@@ -33,7 +33,7 @@ class BaseHandler(tornado.web.RequestHandler):
     def get_scores(self):
         for row in self.cursor.execute(
                 'SELECT ' + ', '.join(self.columns) +
-                'FROM scores ORDER BY id DESC'):
+                ' FROM scores ORDER BY id DESC'):
             yield dict(zip(columns, row))
 
 
