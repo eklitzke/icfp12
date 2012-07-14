@@ -247,6 +247,7 @@ class World(object):
                 pass
             elif cell == ROCK:
                 below = read_map[y - 1][x]
+                left = read_map[y][x - 1]
                 right = read_map[y][x + 1]
                 rdiag = read_map[y - 1][x + 1]
                 ldiag = read_map[y - 1][x - 1]
