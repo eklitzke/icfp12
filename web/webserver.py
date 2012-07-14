@@ -31,10 +31,10 @@ class BaseHandler(tornado.web.RequestHandler):
             return self._cursor
 
     def get_scores(self):
-         for row in self.cursor.execute(
+        for row in self.cursor.execute(
                 'SELECT ' + ', '.join(self.columns) +
                 'FROM scores ORDER BY id DESC'):
-            yield dict(zip(columns, row))
+        yield dict(zip(columns, row))
 
 
 class MainHandler(BaseHandler):
@@ -82,6 +82,7 @@ if __name__ == "__main__":
     else:
         application = tornado.web.Application([
             (r"/", MainHandler),
+            (r"/json", JSONHandler),
             ])
         application.listen(opts.port)
         tornado.ioloop.IOLoop.instance().start()
