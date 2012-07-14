@@ -47,7 +47,7 @@ class MainHandler(BaseHandler):
 
     def post(self):
         filename = self.get_argument('filename')
-        score = int(self.get_argument('score'))
+        score = int(float(self.get_argument('score')))
         moves = self.get_argument('moves')
         final_status = self.get_argument('final_status', None)
         bot_name = self.get_argument('bot_name', None)
