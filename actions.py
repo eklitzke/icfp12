@@ -34,8 +34,15 @@ def find_route(world, to, origin):
 
         # Use it:
         scores = {".": 5, "\\": 0, " ": 2}
-        def _think(new):
-            block = world.at(new[0], new[1]) 
+        def _think(new, down=False):
+            try:
+                block = world.at(new[0], new[1])
+                if down and world.at(new[0], new[1]+2) == "*":
+                    # Down is not an option if there is a rock above us
+                    return
+            except IndexError:
+                # we tried to think of a position that was out-of-bounds
+                return
             if block and block not in "#*L123456789" and new not in closed_blocks:
                 if new not in open_blocks:
                     h = _manhatten_distance(new)
@@ -48,7 +55,7 @@ def find_route(world, to, origin):
                         open_blocks[new] = (g+h, g, h, current)
 
         _think((current[0], current[1]+1))  # Up
-        _think((current[0], current[1]-1))  # Down
+        _think((current[0], current[1]-1), True)  # Down
         _think((current[0]+1, current[1]))  # Left
         _think((current[0]-1, current[1]))  # Right
                 
