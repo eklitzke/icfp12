@@ -213,7 +213,8 @@ def main():
 
     print 'FINAL SCORE: %d' % my_world.score()
     print 'MOVES:', ''.join(moves)
-    my_world.post_score(moves, args.file)
+    if not args.use_stdin:
+        my_world.post_score(moves, args.file, 'human')
 
 if __name__ == "__main__":
     main()

@@ -341,13 +341,14 @@ class World(object):
         elif self.in_lift:
             self.state = REACHED_LIFT
 
-    def post_score(self, moves, filename, final_status=None):
+    def post_score(self, moves, filename, bot_name=None, final_status=None):
         if isinstance(moves, list):
             moves = ''.join(moves)
         data = {
             'filename': filename,
             'moves': moves,
             'score': self.score(),
+            'bot_name': bot_name,
         }
         if final_status:
             data['final_status'] = final_status
