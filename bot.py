@@ -3,6 +3,9 @@ import types
 import random
 import logging
 import math
+import os
+import signal
+import sys
 
 MOVE_COMMANDS = ["U", "D", "L", "R", "A", "W"]
 
@@ -238,12 +241,29 @@ class WeightedBot(Bot):
 
         return weighted_chooser[ndx][1]
 
-def run_bot(bot, base_world, iterations):
-    max_score = -100000
+def run_bot(bot, base_world, iterations, on_finish):
+
+    max_score = -1000
     max_moves = None
     best_world = None
+    is_done = False
 
-    for _ in range(iterations):
+    def return_best(*args):
+        on_finish(best_world, max_score, max_moves)
+
+    signal.signal(signal.SIGINT, return_best)
+    signal.signal(signal.SIGALRM, return_best)
+
+    def forever():
+        while True:
+            yield
+
+    if iterations > 0:
+        looper = xrange(iterations)
+    else:
+        looper = forever()
+
+    for _ in looper:
         the_world = base_world.copy()
         moves = []
         while not the_world.is_done():
@@ -255,12 +275,18 @@ def run_bot(bot, base_world, iterations):
                 log.warn('picked an invalid move')
                 continue
 
-        if the_world.score > max_score:
-            max_score = the_world.score()
-            max_moves = moves
-            best_world = the_world.copy()
+            if the_world.is_done() and the_world.score() > max_score:
+                max_score = the_world.score()
+                max_moves = moves
+                best_world = the_world.copy()
+                is_done = True
+            elif not the_world.is_done() and the_world.score(True) > max_score:
+                max_score = the_world.score(True)
+                max_moves = moves + ['A']
+                best_world = the_world.copy()
+                is_done = False
 
-    return best_world, max_score, max_moves
+    on_finish(best_world, max_score, max_moves)
 
 def bot_for_name(name):
     for cls in globals().values():
@@ -275,6 +301,8 @@ if __name__ == "__main__":
     #opt_parser.add_argument('--verbose', '-v', dest='verbosity', default=0, action='count')
     opt_parser.add_argument('--iterations', '-i', dest='iterations', default=1000, type=int)
     opt_parser.add_argument('--name', '-n', dest='name', default="random")
+    opt_parser.add_argument('--time-based', default=0, type=int, help='max seconds to run')
+
     opt_parser.add_argument('file')
     args = opt_parser.parse_args()
 
@@ -285,8 +313,16 @@ if __name__ == "__main__":
     the_bot = bot_for_name(args.name)
     the_world = world.read_world(args.file)
 
-    world, score, moves = run_bot(the_bot, the_world, args.iterations)
-
-    print "Moves: %s" % "".join(moves)
-    print "Score: %d (%d/%d)" % (score, world.lambdas_collected, world.remaining_lambdas)
-    world.post_score(moves, args.file)
+    if args.time_based > 0:
+        signal.alarm(args.time_based)
+        def on_finish(world, score, moves):
+            print ''.join(moves)
+            sys.exit(0)
+        run_bot(the_bot, the_world, -1, on_finish)
+    else:
+        def on_finish(world, score, moves):
+            print "Moves: %s" % "".join(moves)
+            print "Score: %d (%d/%d)" % (score, world.lambdas_collected, world.remaining_lambdas)
+            world.post_score(moves, args.file)
+            sys.exit(0)
+        run_bot(the_bot, the_world, args.iterations, on_finish)

@@ -93,10 +93,10 @@ class World(object):
     def is_aborted(self):
         return self.state == ABORTED
 
-    def score(self):
+    def score(self, force_abort=False):
         if self.is_failed():
             return 0
-        if self.is_aborted():
+        if force_abort or self.is_aborted():
             win_mod = 2.0
         else:
             win_mod = 3.0
