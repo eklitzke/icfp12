@@ -43,7 +43,7 @@ class MainHandler(BaseHandler):
         self.set_header('Content-Type', 'text/plain')
         self.write(','.join(self.columns))
         for row in self.get_scores():
-            vals = [r[k] for k in self.columns]
+            vals = [row[k] for k in self.columns]
             self.write(','.join(vals) + '\n')
 
     def post(self):
