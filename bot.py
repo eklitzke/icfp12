@@ -113,14 +113,12 @@ class NearBot(object):
 
         if self.route:
             return self.route.pop(0)
-        
-        self.route = list(get_actions(the_world)[0][1])
-        return self.route.pop(0)
+
         # Find the nearest interesting thing and try to get there
         robot = get_robot(the_world)
 #        target = random_lambda(the_world)  # Random order
 #       target, d = nearest_lambda(the_world) # Nearest by absolute distance, not cmds
-        
+
         target, d = nearest_lambda(the_world)
         if (d and abs(d[0])+abs(d[1]) > 4) and random.random() > 0.5:
             target = random_lambda(the_world)
