@@ -8,6 +8,73 @@ MOVE_COMMANDS = ["U", "D", "L", "R", "A", "W"]
 
 log = logging.getLogger(__name__)
 
+def find_route(world, to, origin):
+    """Basic A* route finding, to/origin are (x,y) tuples
+       world is an instance of World.
+    """
+    def _manhatten_distance(to):
+        return abs(to[0]-origin[0]) + abs(to[1]-origin[1])
+
+    start = tuple(origin)
+    open_blocks = {start: (9999,9999,9999,None)}  # FGH
+    closed_blocks = {}
+    while 1:
+        # Get min node:
+        current = None
+        f_max = 10000000
+        for k,v in open_blocks.items():
+            if k in closed_blocks:
+                continue
+            if v[0] < f_max:
+                current = k
+                f_max = v[0]
+
+#       print "STEP", current, open_blocks.keys(), closed_blocks.keys()
+        if current is None:
+            # No route!
+            return None
+            
+        #Move current to closed list
+        closed_blocks[current] = open_blocks[current]
+
+        # Use it:
+        scores = {".": 5, "\\": 0, " ": 2}
+        def _think(new):
+            block = world.at(new[0], new[1]) 
+            if block not in "#*" and new not in closed_blocks:
+                if new not in open_blocks:
+                    h = _manhatten_distance(new)
+                    g = scores.get(block, 5)
+                    open_blocks[new] = (g+h, g, h, current)
+                else:
+                    g = scores.get(block, 5)
+                    if g < open_blocks[new][1]:
+                        h = _manhatten_distance(new) 
+                        open_blocks[new] = (g+h, g, h, current)
+
+        _think((current[0], current[1]+1))  # Up
+        _think((current[0], current[1]-1))  # Down
+        _think((current[0]+1, current[1]))  # Left
+        _think((current[0]-1, current[1]))  # Right
+                
+        if to in closed_blocks:
+            break  # Not guarenteed optimal to break on this
+ 
+    # Walk Backwards to get the actual route
+    cells = [to]
+    previous = closed_blocks[to][3]
+    while previous:
+        cells.insert(0, previous)
+        previous = closed_blocks[previous][3]
+
+    # Output the required robot commands
+    last_r = cells[0]
+    CMD_STRING = ""
+    for r in cells[1:]:
+        CMD_STRING += {(1,0):"R", (-1,0):"L", (0,1):"U", (0,-1):"D"}[(r[0]-last_r[0], r[1]-last_r[1])]
+        last_r = r
+    return CMD_STRING
+
 class Bot(object):
     def pick_move(self, the_world):
         raise NotImplementedError
