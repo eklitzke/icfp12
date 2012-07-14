@@ -229,7 +229,7 @@ class World(object):
         world.num_moves += 1
         after_move_map = world._move_robot(direction)
         moved_rocks = set()
-        after_update_map = world._update_world(after_move_map)
+        after_update_map = world._update_world(after_move_map, moved_rocks)
         world._check_end(direction, moved_rocks, after_update_map)
         world.map = after_update_map
         return world
@@ -238,10 +238,9 @@ class World(object):
         input_map = input_map or self.map
         return copy.deepcopy(input_map)
 
-    def _update_world(self, read_map):
+    def _update_world(self, read_map, moved_rocks):
         logging.info(read_map)
         write_map = self.copy_map(read_map)
-        moved_rocks = set()
         for x, y in self.positions():
             cell = read_map[y][x]
             if cell == ROBOT:
@@ -276,6 +275,7 @@ class World(object):
         if direction == ABORT:
             self.state = ABORTED
             return
+
         above = self.robot[0], self.robot[1] + 1
         if above in moved_rocks:
             self.state = KILLED
