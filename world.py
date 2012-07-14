@@ -79,7 +79,7 @@ class World(object):
         #print '(%s, %s) -> (%s, %s)' % (x, y, real_x, real_y)
         try:
             return self.map[real_y][real_x]
-        except KeyError:
+        except IndexError:
             return None
 
     def update_cell(self, x, y, symbol, direction=None):
