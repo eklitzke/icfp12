@@ -44,8 +44,11 @@ class WorldEvent(Exception):
 class InvalidMove(WorldEvent):
     pass
 
+class OutOfBoundsError(Exception):
+    pass
+
 class Sim(object):
-    def __init__(self, 
+    def __init__(self,
             world, # a world state
             commands='', # the path of the commands/moves we've made so far
             ):
@@ -53,21 +56,21 @@ class Sim(object):
         self.world = world
 
 class World(object):
-    def __init__(self, map, 
+    def __init__(self, map,
             in_lift=False, # are we in the lift
             lambdas_collected=0, # the number of lambdas collected
             num_moves=0, # the number of moves we have made so far.
             remaining_lambdas=None, # the number of remaining lambdas
             robot=None, # the robot position (cached)
             state=RUNNING # the default state is running
-            ): 
+            ):
         self.in_lift = in_lift
         self.lambdas_collected = lambdas_collected
         self.map = map
         self.num_moves = num_moves
         self.state = state
         if robot is None:
-            # compute the robot position 
+            # compute the robot position
             for x, y in self.positions():
                 if map[y][x] == ROBOT:
                     robot = x, y
@@ -80,13 +83,13 @@ class World(object):
                 if map[y][x] == LAMBDA:
                     remaining_lambdas += 1
         self.remaining_lambdas = remaining_lambdas
-        
+
     def is_done(self):
         return self.state != RUNNING
 
     def is_failed(self):
         return self.state == KILLED or self.state == FLOODED
-    
+
     def is_aborted(self):
         return self.state == ABORTED
 
@@ -109,7 +112,7 @@ class World(object):
     def copy(self):
         """Make a copy of the World object."""
         return World([row[:] for row in self.map],
-                remaining_lambdas=self.remaining_lambdas, 
+                remaining_lambdas=self.remaining_lambdas,
                 lambdas_collected=self.lambdas_collected,
                 in_lift=self.in_lift,
                 state=self.state,
@@ -118,8 +121,8 @@ class World(object):
 
     def at(self, x, y):
         """Get the thing at logical coordinates (x, y)
-        0, 0 is the bottom left! forever! 
-        X -> the left offset 
+        0, 0 is the bottom left! forever!
+        X -> the left offset
         Y -> the bottom offset
         """
         return self.map[y][x]
@@ -201,7 +204,7 @@ class World(object):
            rock_y = robot_y + dy
            already_there = self.map[rock_y][rock_x] # this will raise if it's outside the extent
            if already_there != EMPTY:
-             raise ValueError("unexpected %r" % already_there)
+             raise InvalidMove("unexpected %r" % already_there)
            self.map[rock_y][rock_x] = ROCK
         elif symbol == LAMBDA:
             self.lambdas_collected += 1
@@ -209,9 +212,9 @@ class World(object):
         elif symbol == OPEN:
             self.in_lift = True
         elif symbol == CLOSED:
-            raise ValueError("unexpected closed lift") 
+            raise InvalidMove("unexpected closed lift")
         elif symbol == WALL:
-            raise ValueError("unexpected wall")
+            raise InvalidMove("unexpected wall")
         else:
             assert symbol in (EMPTY, EARTH, ROBOT), 'unexpectedly got %r' % (symbol,)
         self.map[orig_y][orig_x] = EMPTY

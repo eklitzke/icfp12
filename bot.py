@@ -33,15 +33,19 @@ def find_route(world, to, origin):
         if current is None:
             # No route!
             return None
-            
+
         #Move current to closed list
         closed_blocks[current] = open_blocks[current]
 
         # Use it:
         scores = {".": 5, "\\": 0, " ": 2}
         def _think(new):
-            block = world.at(new[0], new[1]) 
-            if block and block not in "#*" and new not in closed_blocks:
+            try:
+                block = world.at(new[0], new[1])
+            except IndexError:
+                # we tried to think of a position that was out-of-bounds
+                return
+            if block and block not in "#*L" and new not in closed_blocks:
                 if new not in open_blocks:
                     h = _manhatten_distance(new)
                     g = scores.get(block, 5)
@@ -49,17 +53,17 @@ def find_route(world, to, origin):
                 else:
                     g = scores.get(block, 5)
                     if g < open_blocks[new][1]:
-                        h = _manhatten_distance(new) 
+                        h = _manhatten_distance(new)
                         open_blocks[new] = (g+h, g, h, current)
 
         _think((current[0], current[1]+1))  # Up
         _think((current[0], current[1]-1))  # Down
         _think((current[0]+1, current[1]))  # Left
         _think((current[0]-1, current[1]))  # Right
-                
+
         if to in closed_blocks:
             break  # Not guarenteed optimal to break on this
- 
+
     # Walk Backwards to get the actual route
     cells = [to]
     previous = closed_blocks[to][3]
@@ -248,6 +252,7 @@ def run_bot(bot, base_world, iterations):
                 the_world = the_world.move(next_move)
                 moves.append(next_move)
             except world.InvalidMove:
+                log.warn('picked an invalid move')
                 continue
 
         if the_world.score > max_score:
