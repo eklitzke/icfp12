@@ -1,0 +1,4 @@
+#!/bin/bash
+set -eu
+pypy bot.py --name=nearbot -i 2500 $1 | awk '/^Moves/ { print $2}' | python vis.py --stdin $1
+
