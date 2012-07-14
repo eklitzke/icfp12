@@ -82,6 +82,18 @@ def get_robot(the_world):
             robot = (x,y)
     return robot
 
+
+def random_lambda(the_world):
+    lambdas = []
+    for (x, y) in the_world.positions():
+        cell = the_world.at(x, y)
+        if cell == '\\':
+            lambdas.append((x,y))
+    if not lambdas:
+        return None
+    return random.choice(lambdas)
+
+
 class NearBot(object):
     name = "nearbot"
     def __init__(self):
@@ -94,9 +106,15 @@ class NearBot(object):
         
         # Find the nearest interesting thing and try to get there
         robot = get_robot(the_world)
-        target, d = nearest_lambda(the_world)        
+#        target = random_lambda(the_world)  # Random order
+#       target, d = nearest_lambda(the_world) # Nearest by absolute distance, not cmds
+        
+        target, d = nearest_lambda(the_world)
+        if (d and abs(d[0])+abs(d[1]) > 4) and random.random() > 0.5:
+            target = random_lambda(the_world)
+
         if not target:
-            target, d= nearest_lift(the_world)
+            target, d = nearest_lift(the_world)
 
         cmdlist = find_route(the_world, target, robot)
         if cmdlist:
@@ -255,5 +273,5 @@ if __name__ == "__main__":
     world, score, moves = run_bot(the_bot, the_world, args.iterations)
 
     print "Moves: %s" % "".join(moves)
-    print "Score: %d" % score
+    print "Score: %d (%d/%d)" % (score, world.lambdas_collected, world.remaining_lambdas)
     world.post_score(args.file)
