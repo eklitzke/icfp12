@@ -343,7 +343,6 @@ class World(object):
         try:
             urllib2.urlopen('http://eklitzke.org/', urllib.urlencode(data), 5)
         except Exception, e:
-            print e
             pass
 
     def __str__(self):
