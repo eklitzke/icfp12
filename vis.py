@@ -141,7 +141,7 @@ def main():
                 break
             if c == ord('b'):
                 if not the_bot:
-                    the_bot = bot.Bot()
+                    the_bot = bot.WeightedBot()
                 move = the_bot.pick_move(my_world)
 
             if c in (ord('q'), ord('Q')):
