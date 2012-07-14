@@ -139,7 +139,7 @@ class Bot(object):
 class RandomBot(object):
     name = "random"
     def pick_move(self, the_world):
-        return random.choice(MOVE_COMMANDS)
+        return random.choice(the_world.valid_moves())
 
 def point_distance(p0, p1):
     return math.sqrt((p0[0] - p1[0])**2 + (p0[1] - p1[1])**2)
@@ -222,7 +222,7 @@ class WeightedBot(Bot):
             custom_weights['D'] -= 0.25
             custom_weights['U'] -= 0.25
 
-        for move in MOVE_COMMANDS:
+        for move in the_world.valid_moves():
             running_weight += custom_weights.get(move, self.DEFAULT_WEIGHT)
             weighted_chooser.append((running_weight, move))
 
@@ -241,7 +241,7 @@ def run_bot(bot, base_world, iterations):
     for _ in range(iterations):
         the_world = base_world.copy()
         moves = []
-        while not the_world.done:
+        while not the_world.is_done():
             next_move = the_bot.pick_move(the_world)
             try:
                 the_world = the_world.move(next_move)
@@ -250,7 +250,7 @@ def run_bot(bot, base_world, iterations):
                 continue
 
         if the_world.score > max_score:
-            max_score = the_world.score
+            max_score = the_world.score()
             max_moves = moves
             best_world = the_world.copy()
 
@@ -283,4 +283,4 @@ if __name__ == "__main__":
 
     print "Moves: %s" % "".join(moves)
     print "Score: %d (%d/%d)" % (score, world.lambdas_collected, world.remaining_lambdas)
-    world.post_score(args.file)
+    world.post_score(moves, args.file)
