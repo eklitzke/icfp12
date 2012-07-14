@@ -41,7 +41,7 @@ def find_route(world, to, origin):
         scores = {".": 5, "\\": 0, " ": 2}
         def _think(new):
             block = world.at(new[0], new[1]) 
-            if block not in "#*" and new not in closed_blocks:
+            if block and block not in "#*" and new not in closed_blocks:
                 if new not in open_blocks:
                     h = _manhatten_distance(new)
                     g = scores.get(block, 5)
