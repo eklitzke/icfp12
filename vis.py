@@ -78,11 +78,17 @@ KEY_TO_MOVE = {
     curses.KEY_LEFT: "L",
     curses.KEY_RIGHT: "R",
     ord('a'): "A",
+    ord('A'): "A",
     ord('k'): "U",
+    ord('U'): "U",
     ord('j'): "D",
+    ord('D'): "D",
     ord('h'): "L",
+    ord('L'): "L",
     ord('l'): "R",
+    ord('R'): "R",
     ord('w'): "W",
+    ord('W'): "W",
 }
 
 def translate_key(key):
@@ -90,9 +96,14 @@ def translate_key(key):
 
 def main():
     opt_parser = argparse.ArgumentParser()
-    #opt_parser.add_argument('--verbose', '-v', dest='verbosity', default=0, action='count')
+    #opt_parser.add_argument('--verbose', '-v', dest='verbosity',
+    #default=0, action='count')
+    opt_parser.add_argument('--stdin', dest='use_stdin', default=False, action='store_true')
     opt_parser.add_argument('file')
     args = opt_parser.parse_args()
+
+    if args.use_stdin:
+        input = list(sys.stdin.read().strip())
 
     log_fmt = u"%(asctime)s %(process)s %(levelname)s %(name)s %(filename)s:%(lineno)s %(message)s"
     logging.basicConfig(level=logging.DEBUG, format=log_fmt, filename="vis.log")
@@ -128,17 +139,33 @@ def main():
     world_win.border()
     world_win.refresh()
 
+    if args.use_stdin:
+        def input_iter():
+            while True:
+                try:
+                    yield ord(input.pop(0))
+                    time.sleep(1)
+                except IndexError:
+                    yield -1
+                    break
+    else:
+        def input_iter():
+            while True:
+                yield control_win.getch()
+
     the_bot = None
     world_event = None
     try:
-        while True:
+        for c in input_iter():
+            log.info("c ==== %r", c)
             log.info(my_world)
             move = None
             display_moves(control_win, moves)
             display_score(control_win, my_world)
             draw_world(world_win, my_world)
-            c = control_win.getch()
             if c == -1:
+                if args.use_stdin:
+                    time.sleep(1)
                 break
             if c == ord('b'):
                 if not the_bot:
@@ -170,6 +197,8 @@ def main():
                 log.debug("Unused key, %r", curses.keyname(c))
             if my_world.is_done():
                 display_status(control_win, 'done')
+                if args.use_stdin:
+                    time.sleep(2)
                 break
 
     except world.WorldEvent, e:
