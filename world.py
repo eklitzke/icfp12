@@ -199,9 +199,13 @@ class World(object):
                 continue
             if at == CLOSED:
                 continue
+            if at in TARGETS:
+                continue
             if at == ROCK:
+                if dy != 0:
+                    continue
                 rrx = rx + dx
-                rry = ry + dy
+                rry = ry
                 if rry < 0 or rrx < 0 or rry >= h or rrx >= w:
                     continue
                 if self.map[rry][rrx] != EMPTY:
@@ -246,6 +250,14 @@ class World(object):
             raise InvalidMove("unexpected closed lift")
         elif symbol == WALL:
             raise InvalidMove("unexpected wall")
+        elif symbol in TARGETS:
+            raise InvalidMove("unexpected target")
+        elif symbol in TRAMPOLINES:
+            target_pos = self.trampolines[robot_x, robot_y]
+            # Remove the trampoline target and destination
+            self.trampolines = dict((k, v) for (k, v) in self.trampolines.items() if v != target_pos and k != (robot_x, robot_y))
+            self.map[robot_y][robot_x] = EMPTY
+            robot_x, robot_y = target_pos
         else:
             assert symbol in (EMPTY, EARTH, ROBOT), 'unexpectedly got %r' % (symbol,)
         self.map[orig_y][orig_x] = EMPTY
@@ -417,8 +429,6 @@ def read_world(files):
         assert dst_pos
         trampolines[src_pos] = dst_pos
 
-    robot = (None, None)
-    size = (width, height)
     assert len(a_map) == height
     assert len(a_map[0]) == width
     return World(a_map,

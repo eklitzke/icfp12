@@ -155,14 +155,16 @@ def main():
 
     the_bot = None
     world_event = None
+    chars = input_iter()
     try:
-        for c in input_iter():
-            log.info("c ==== %r", c)
-            log.info(my_world)
+        while True:
             move = None
             display_moves(control_win, moves)
             display_score(control_win, my_world)
             draw_world(world_win, my_world)
+            c = chars.next()
+            log.info("c ==== %r", c)
+            log.info(my_world)
             if c == -1:
                 if args.use_stdin:
                     time.sleep(1)
