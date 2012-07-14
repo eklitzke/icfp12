@@ -44,7 +44,7 @@ class MainHandler(BaseHandler):
         self.write(','.join(self.columns))
         for row in self.get_scores():
             vals = [row[k] for k in self.columns]
-            self.write(','.join(vals) + '\n')
+            self.write(','.join(map(str, vals)) + '\n')
 
     def post(self):
         filename = self.get_argument('filename')
