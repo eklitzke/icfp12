@@ -63,12 +63,13 @@ def display_status(screen, status):
     screen.addstr(status)
     screen.refresh()
 
-def display_score(screen, score, collected):
+def display_score(screen, world):
     screen.move(2,1)
     screen.clrtoeol()
-    screen.addstr('Score: %d' % score)
-    screen.move(2, 12)
-    screen.addstr('Collected: %d' % collected)
+    fmt = 'Score: %3d  Collected: %2d  Water: %2d  Flooding: %2d  Waterproof: %2d  Underwater: %2d'
+    s = fmt % (world.score(), world.lambdas_collected, world.water,
+            world.flooding, world.waterproof, world.underwater)
+    screen.addstr(s)
     screen.refresh()
 
 KEY_TO_MOVE = {
@@ -134,7 +135,7 @@ def main():
             log.info(my_world)
             move = None
             display_moves(control_win, moves)
-            display_score(control_win, my_world.score(), my_world.lambdas_collected)
+            display_score(control_win, my_world)
             draw_world(world_win, my_world)
             c = control_win.getch()
             if c == -1:

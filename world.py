@@ -4,6 +4,7 @@ import collections
 import hashlib
 import fileinput
 import logging
+import re
 import urllib
 import urllib2
 
@@ -34,26 +35,15 @@ KILLED = 'KILLED'
 FLOODED = 'FLOODED'
 REACHED_LIFT = 'REACHED_LIFT'
 
-
-def not_empty(sym):
-    return sym is not None and sym != EMPTY
+DEFAULT_FLOODING = 0
+DEFAULT_WATER = -1
+DEFAULT_WATERPROOF = 10
 
 class WorldEvent(Exception):
     pass
 
 class InvalidMove(WorldEvent):
     pass
-
-class OutOfBoundsError(Exception):
-    pass
-
-class Sim(object):
-    def __init__(self,
-            world, # a world state
-            commands='', # the path of the commands/moves we've made so far
-            ):
-        self.commands = commands
-        self.world = world
 
 class World(object):
     def __init__(self, map,
@@ -62,13 +52,26 @@ class World(object):
             num_moves=0, # the number of moves we have made so far.
             remaining_lambdas=None, # the number of remaining lambdas
             robot=None, # the robot position (cached)
-            state=RUNNING # the default state is running
-            ):
+            state=RUNNING, # the default state is running
+            water=None, # The water level, -1 => no water, 0 => water at level 0
+            flooding=None, # The flooding rate
+            waterproof=None, # The number of moves allowed to be underwater
+            underwater=0): # The number of moves spent underwater
         self.in_lift = in_lift
         self.lambdas_collected = lambdas_collected
         self.map = map
         self.num_moves = num_moves
         self.state = state
+        if water is None:
+            water = DEFAULT_WATER
+        self.water = water
+        if flooding is None:
+            flooding = DEFAULT_FLOODING
+        self.flooding = flooding
+        if waterproof is None:
+            waterproof = DEFAULT_WATERPROOF
+        self.waterproof = waterproof
+        self.underwater = underwater
         if robot is None:
             # compute the robot position
             for x, y in self.positions():
@@ -117,7 +120,11 @@ class World(object):
                 in_lift=self.in_lift,
                 state=self.state,
                 robot=self.robot,
-                num_moves=self.num_moves)
+                num_moves=self.num_moves,
+                water=self.water,
+                flooding=self.flooding,
+                waterproof=self.waterproof,
+                underwater=self.underwater)
 
     def at(self, x, y):
         """Get the thing at logical coordinates (x, y)
@@ -229,12 +236,13 @@ class World(object):
         place.
         """
         world = self.copy()
-        world.num_moves += 1
+
         after_move_map = world._move_robot(direction)
         moved_rocks = set()
         after_update_map = world._update_world(after_move_map, moved_rocks)
         world._check_end(direction, moved_rocks, after_update_map)
         world.map = after_update_map
+        world.num_moves += 1
         return world
 
     def copy_map(self, input_map=None):
@@ -276,13 +284,24 @@ class World(object):
         return write_map
 
     def _check_end(self, direction, moved_rocks, new_map):
+        """Check ending conditions after updating the map"""
         if direction == ABORT:
             self.state = ABORTED
             return
-
+        # Update the underwater count.  Note that we update .underwater before updating .water
+        if self.robot[1] <= self.water:
+            self.underwater += 1
+        else:
+            self.underwater = 0
+        # Every n-flooding moves, increase the water level
+        if self.flooding > 0 and self.num_moves > 0 and (self.num_moves % self.flooding) == 0:
+            self.water += 1
         above = self.robot[0], self.robot[1] + 1
         if above in moved_rocks:
             self.state = KILLED
+        # If we've been underwater for waterproof turns, we are flooded:
+        elif self.underwater > 0 and self.underwater > self.waterproof:
+            self.state = FLOODED
         elif self.in_lift:
             self.state = REACHED_LIFT
 
@@ -307,12 +326,9 @@ class World(object):
         return '\n'.join(buf)
 
     def __repr__(self):
-        return u'World(robot=%r, map=%r)' % (self.robot, self.map)
+        return u'World(robot=%r, map=%r, in_lift=%r)' % (self.robot, self.map, self.in_lift)
 
-def iterate(world):
-    "iterate the world to a new one"
-    w = world.copy()
-    return w
+_ext_pat = re.compile(r"^(.+?)\s+(\d+)$")
 
 def read_world(files):
     """Read a world state from a sequence of files or stdin"""
@@ -320,15 +336,39 @@ def read_world(files):
     height = 0
     a_map = []
     lambdas = 0
+    ext = False
+    waterproof = None
+    water = None
+    flooding = None
     for row, line in enumerate(fileinput.input(files)):
-        height = max(height, row + 1)
-        row = []
-        a_map.append(row)
-        for col, char in enumerate(line[:-1]):
-            row.append(char)
-            width = max(width, col + 1)
-            if char == LAMBDA:
-                lambdas += 1
+        line = line.strip()
+        if line == '':
+            ext = True
+            continue
+        elif not ext:
+            height = max(height, row + 1)
+            row = []
+            a_map.append(row)
+            for col, char in enumerate(line):
+                row.append(char)
+                width = max(width, col + 1)
+                if char == LAMBDA:
+                    lambdas += 1
+        else:
+            match = _ext_pat.match(line)
+            if match:
+                command = match.group(1).lower()
+                val = int(match.group(2))
+                if command == "water":
+                    # Convert to 0-based index (0 => water at level 0)
+                    water = val - 1
+                elif command == "flooding":
+                    flooding = val
+                elif command == "waterproof":
+                    waterproof = val
+            else:
+                log.error("unexpected extension: %r", line)
+
     # invert the y-axis
     a_map.reverse()
     # pad the map with empties
@@ -339,7 +379,10 @@ def read_world(files):
     size = (width, height)
     assert len(a_map) == height
     assert len(a_map[0]) == width
-    return World(a_map)
+    return World(a_map,
+            water=water,
+            flooding=flooding,
+            waterproof=waterproof)
 
 if __name__ == '__main__':
     world = read_world(sys.argv[1:])
