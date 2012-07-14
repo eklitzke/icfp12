@@ -34,17 +34,17 @@ class BaseHandler(tornado.web.RequestHandler):
         for row in self.cursor.execute(
                 'SELECT ' + ', '.join(self.columns) +
                 'FROM scores ORDER BY id DESC'):
-        yield dict(zip(columns, row))
+            yield dict(zip(columns, row))
 
 
 class MainHandler(BaseHandler):
 
-   def get(self):
-       self.set_header('Content-Type', 'text/plain')
-       self.write(','.join(self.columns))
-       for row in self.get_scores():
-           vals = [r[k] for k in self.columns]
-           self.write(','.join(vals) + '\n')
+    def get(self):
+        self.set_header('Content-Type', 'text/plain')
+        self.write(','.join(self.columns))
+        for row in self.get_scores():
+            vals = [r[k] for k in self.columns]
+            self.write(','.join(vals) + '\n')
 
     def post(self):
         filename = self.get_argument('filename')
@@ -60,6 +60,7 @@ class MainHandler(BaseHandler):
                 'INSERT INTO scores (filename, score, moves, final_status, bot_name) '
                 'VALUES (?, ?, ?, ?)', (filename, score, moves, final_status, bot_name))
         conn.commit()
+
 
 class JSONHandler(BaseHandler):
 
