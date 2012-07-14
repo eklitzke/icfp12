@@ -1,3 +1,4 @@
+import json
 import optparse
 import tornado.ioloop
 import tornado.web
@@ -12,15 +13,16 @@ def create_table():
         '  filename TEXT NOT NULL,'
         '  score INTEGER NOT NULL,'
         '  moves TEXT NOT NULL,'
-        '  final_status TEXT)')
+        '  final_status TEXT,'
+        '  bot_name TEXT)')
     conn.cursor().execute(
         'CREATE INDEX scores_idx ON scores (score, filename)')
     conn.cursor().execute(
         'CREATE INDEX moves_idx ON scores (moves, filename)')
 
+class BaseHandler(tornado.web.RequestHandler):
 
-
-class MainHandler(tornado.web.RequestHandler):
+    columns = ['id', 'filename', 'score', 'moves', 'final_status', 'bot_name']
 
     @property
     def cursor(self):
@@ -28,28 +30,44 @@ class MainHandler(tornado.web.RequestHandler):
             self._cursor = conn.cursor()
         return self._cursor
 
-    def get(self):
-        buf = []
+    def get_scores(self):
         for row in self.cursor.execute(
-                'SELECT * FROM scores ORDER BY score DESC'):
-            print row
-            buf.append(','.join(map(str, row)))
+                'SELECT ' + ', '.join(self.columns) +
+                ' FROM scores ORDER BY id DESC'):
+            yield dict(zip(self.columns, row))
+
+
+class MainHandler(BaseHandler):
+
+    def get(self):
         self.set_header('Content-Type', 'text/plain')
-        self.write('\n'.join(buf))
+        self.write(','.join(self.columns) + '\n')
+        for row in self.get_scores():
+            vals = [row[k] for k in self.columns]
+            self.write(','.join(map(str, vals)) + '\n')
 
     def post(self):
         filename = self.get_argument('filename')
-        score = int(self.get_argument('score'))
+        score = int(float(self.get_argument('score')))
         moves = self.get_argument('moves')
         final_status = self.get_argument('final_status', None)
+        bot_name = self.get_argument('bot_name', None)
         self.cursor.execute(
             'SELECT * FROM scores WHERE filename = ? AND moves = ? LIMIT 1',
             (filename, moves))
         if self.cursor.fetchone() == None:
             self.cursor.execute(
-                'INSERT INTO scores (filename, score, moves, final_status) '
-                'VALUES (?, ?, ?, ?)', (filename, score, moves, final_status))
+                'INSERT INTO scores (filename, score, moves, final_status, bot_name) '
+                'VALUES (?, ?, ?, ?, ?)', (filename, score, moves, final_status, bot_name))
         conn.commit()
+
+
+class JSONHandler(BaseHandler):
+
+    def get(self):
+        self.set_header('Content-Type', 'application/json')
+        data = list(self.get_scores())
+        self.write(json.dumps(data))
 
 
 if __name__ == "__main__":
@@ -65,6 +83,7 @@ if __name__ == "__main__":
     else:
         application = tornado.web.Application([
             (r"/", MainHandler),
+            (r"/json", JSONHandler),
             ])
         application.listen(opts.port)
         tornado.ioloop.IOLoop.instance().start()
