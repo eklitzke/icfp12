@@ -1,6 +1,8 @@
+import cProfile
 import argparse
 import types
 import functools
+import pstats
 import random
 import logging
 import math
@@ -410,6 +412,7 @@ if __name__ == "__main__":
     opt_parser.add_argument('--name', '-n', dest='name', default="random")
     opt_parser.add_argument('--time-based', default=0, type=int, help='max seconds to run')
     opt_parser.add_argument('--initial-path', default='')
+    opt_parser.add_argument('--profile', default=False, action='store_true')
 
     opt_parser.add_argument('file')
     args = opt_parser.parse_args()
@@ -421,7 +424,19 @@ if __name__ == "__main__":
     the_bot = bot_for_name(args.name)
     the_world = world.read_world(args.file)
 
-    if args.time_based > 0:
+    if args.profile:
+        def on_result(*_):
+            pass
+        profile_path = "profile.pstats"
+        if os.path.exists(profile_path):
+            os.unlink(profile_path)
+        num_iterations = 100
+        cProfile.runctx("run_bot(the_bot, the_world, num_iterations, on_result)", globals(), locals(), profile_path)
+        stats = pstats.Stats(profile_path)
+        stats.sort_stats('cumulative')
+        stats.print_stats()
+        os.unlink(profile_path)
+    elif args.time_based > 0:
         signal.alarm(args.time_based)
         def on_finish(world, score, moves):
             print ''.join(moves)

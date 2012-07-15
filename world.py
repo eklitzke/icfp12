@@ -42,6 +42,7 @@ DEFAULT_FLOODING = 0
 DEFAULT_WATER = -1
 DEFAULT_WATERPROOF = 10
 
+
 class WorldEvent(Exception):
     pass
 
