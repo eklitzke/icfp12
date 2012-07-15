@@ -10,14 +10,14 @@ import sys
 
 from actions import get_actions
 
-MOVE_COMMANDS = ["U", "D", "L", "R", "A", "W"]
+#MOVE_COMMANDS = ["U", "D", "L", "R", "A", "W"]
 
 log = logging.getLogger(__name__)
 
 def manhattan_distance(origin, to):
     return abs(to[0] - origin[0]) + abs(to[1] - origin[1])
 
-def find_route(world, to, origin):
+def find_route(a_world, to, origin):
     """Basic A* route finding, to/origin are (x,y) tuples
        world is an instance of World.
 
@@ -48,12 +48,12 @@ def find_route(world, to, origin):
         closed_blocks[current] = open_blocks[current]
 
         # Use it:
-        scores = {".": 4, "\\": 0, " ": 2}
+        scores = {world.EARTH: 4, world.LAMBDA: 0, world.EMPTY: 2}
         def _think(new, down=False):
             try:
-                block = world.at(new[0], new[1])
+                block = a_world.at(new[0], new[1])
                 safe_to_go_down = True
-                if down and world.at(new[0], new[1]+2) == "*":
+                if down and a_world.at(new[0], new[1]+2) == world.ROCK:
                     # Down is not an option if there is a rock above us
                     return
             except IndexError:
@@ -87,11 +87,11 @@ def find_route(world, to, origin):
 
     # Output the required robot commands
     last_r = cells[0]
-    CMD_STRING = ""
+    cmd_string = ""
     for r in cells[1:]:
-        CMD_STRING += {(1,0):"R", (-1,0):"L", (0,1):"U", (0,-1):"D"}[(r[0]-last_r[0], r[1]-last_r[1])]
+        cmd_string += {(1,0):world.RIGHT, (-1,0): world.LEFT, (0,1): world.UP, (0,-1): world.DOWN}[(r[0]-last_r[0], r[1]-last_r[1])]
         last_r = r
-    return CMD_STRING
+    return cmd_string
 
 def get_robot(the_world):
     return the_world.robot
@@ -122,11 +122,11 @@ class NearBot(object):
 
         choices = []
         # If we can push a rock to the right, add that as a choice.
-        if the_world.at(robot[0]+1, robot[1]) == "*" and the_world.at(robot[0]+2, robot[1]) == " ":
+        if the_world.at(robot[0]+1, robot[1]) == world.ROCK and the_world.at(robot[0]+2, robot[1]) == world.EMPTY:
             choices.append(('R', 1))
 
         # Same, pushing a rock left
-        if the_world.at(robot[0]-1, robot[1]) == "*" and the_world.at(robot[0]-2, robot[1]) == " ":
+        if the_world.at(robot[0]-1, robot[1]) == world.ROCK and the_world.at(robot[0]-2, robot[1]) == world.EMPTY:
             choices.append(('L', 1))
 
         # Find the nearest interesting thing and try to get there
@@ -150,7 +150,7 @@ class NearBot(object):
 
         # No Route found, give up
         if not choices:
-            choices.append(('A', 10))
+            choices.append((world.ABORT, 10))
 
         return [(route, score * the_world.goodness(extra_moves=len(route)))
                 for route, score in choices if route is not None]
