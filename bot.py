@@ -334,7 +334,7 @@ class Planner(object):
         return plan
 
 
-def run_bot(bot, base_world, iterations, on_finish):
+def run_bot(bot, base_world, iterations, on_finish, initial_path=None):
 
     max_score = -1000
     max_moves = None
@@ -357,7 +357,10 @@ def run_bot(bot, base_world, iterations, on_finish):
         looper = forever()
 
     planner = Planner()
-    choices = bot.get_choices(base_world)
+    if initial_path:
+        choices = [(initial_path, 1)]
+    else:
+        choices = bot.get_choices(base_world)
     assert choices
     planner.add_plans((score, Plan(base_world, plan)) for (plan, score) in choices)
     assert planner.plans
@@ -381,13 +384,14 @@ def run_bot(bot, base_world, iterations, on_finish):
             best_world = new_world.copy()
             is_done = True
             print str(new_world)
-        elif not new_world.is_done() and new_world.score(True) > max_score:
-            max_score = new_world.score(True)
+        elif not new_world.is_done() and new_world.score() > max_score:
+            max_score = new_world.score()
             max_moves = new_world.path + 'A'
             best_world = new_world.copy()
             is_done = False
             print str(new_world)
 
+    print 'ran out of iterations'
     on_finish(best_world, max_score, max_moves)
 
 def bot_for_name(name):
@@ -404,6 +408,7 @@ if __name__ == "__main__":
     opt_parser.add_argument('--iterations', '-i', dest='iterations', default=1000, type=int)
     opt_parser.add_argument('--name', '-n', dest='name', default="random")
     opt_parser.add_argument('--time-based', default=0, type=int, help='max seconds to run')
+    opt_parser.add_argument('--initial-path', default='')
 
     opt_parser.add_argument('file')
     args = opt_parser.parse_args()
@@ -427,4 +432,4 @@ if __name__ == "__main__":
             print "Score: %d (%d/%d)" % (score, world.lambdas_collected, world.remaining_lambdas)
             world.post_score(moves, args.file, args.name)
             sys.exit(0)
-        run_bot(the_bot, the_world, args.iterations, on_finish)
+        run_bot(the_bot, the_world, args.iterations, on_finish, initial_path=args.initial_path.rstrip('A'))

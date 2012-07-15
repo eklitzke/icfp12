@@ -144,7 +144,7 @@ def main():
             while True:
                 try:
                     yield ord(input.pop(0))
-                    time.sleep(1)
+                    time.sleep(0.2)
                 except IndexError:
                     yield -1
                     break

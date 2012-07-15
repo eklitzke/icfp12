@@ -121,20 +121,20 @@ class World(object):
     def is_aborted(self):
         return self.state == ABORTED
 
-    def score(self, force_abort=False):
+    def score(self):
         if self.is_failed():
             return 0
-        if force_abort or self.is_aborted():
-            win_mod = 2.0
-        else:
+        win_mod = 2.0
+        if self.is_done() and not (self.is_aborted() or self.is_failed()):
             win_mod = 3.0
+
         return (25 * self.lambdas_collected * win_mod) - self.num_moves
 
     def goodness(self, extra_moves=0, force_abort=False):
         """How good is the score for this world, considering how many moves it
         took to get to this state?
         """
-        return float(self.score(force_abort) - extra_moves) / float(self.num_moves or 1)
+        return float(self.score() - extra_moves) / float(self.num_moves or 1)
 
     def size(self):
         """Get a tuple of the width and the height of the map"""
