@@ -368,7 +368,7 @@ class World(object):
             pass
 
     def __eq__(self, other):
-        return self.path == other.path
+        return type(self) == type(other) and self.path == other.path and self.map == other.map
 
     def __str__(self):
         buf = ['~~~ %s' % self.path]
