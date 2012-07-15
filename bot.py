@@ -293,9 +293,9 @@ class Plan(object):
                     return out
                 out.extend(self.detect_move_rocks(world_copy))
         except world.InvalidMove:
-            print >>sys.stderr, ' path was INVALID\n'
+            #print >>sys.stderr, ' path was INVALID'
             return out
-        print >>sys.stderr, ' goodness was %f' % (world_copy.goodness())
+        #print >>sys.stderr, ' goodness was %f' % (world_copy.goodness())
 
         out.append(world_copy)
         return out
@@ -515,7 +515,7 @@ if __name__ == "__main__":
 
     def on_best(planner, world):
         global best
-        print >>sys.stderr, "Got new best world:"
+        print >>sys.stderr, "Got new best world:", world.score()
         print >>sys.stderr, world
         ascope.best = planner.best.key
 
@@ -549,9 +549,11 @@ if __name__ == "__main__":
     elif args.time_based > 0:
         signal.alarm(args.time_based)
         def on_finish(world, score, moves):
-            print ''.join(moves)
-            sys.exit(0)
-        run_bot(the_bot, the_world, -1, on_finish=on_finish, on_best=on_best)
+            #print ''.join(moves)
+            #sys.exit(0)
+            pass
+        run_bot(the_bot, the_world, -1, on_best=on_best)
+        print finish_path(ascope.best)
     else:
         run_bot(the_bot, the_world, args.iterations,
                 on_finish=on_finish,
