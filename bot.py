@@ -161,8 +161,9 @@ class Bot(object):
 
 class RandomBot(object):
     name = "random"
-    def pick_move(self, the_world):
-        return random.choice(the_world.valid_moves())
+
+    def get_choices(self, a_world):
+        return [(c, 1.0) for c in a_world.valid_moves()]
 
 def point_distance(p0, p1):
     return math.sqrt((p0[0] - p1[0])**2 + (p0[1] - p1[1])**2)
@@ -341,6 +342,7 @@ class Planner(object):
         if plan is None:
             assert len(self.plans) == 0
         return plan
+
 
 
 def run_bot(bot, base_world, iterations, on_finish, initial_path=None):
