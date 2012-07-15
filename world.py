@@ -294,10 +294,9 @@ class World(object):
 
     def copy_map(self, input_map=None):
         input_map = input_map or self.map
-        return copy.deepcopy(input_map)
+        return map(list, input_map)
 
     def _update_world(self, read_map, moved_rocks):
-        logging.info(read_map)
         write_map = self.copy_map(read_map)
         for x, y in self.positions():
             cell = read_map[y][x]
