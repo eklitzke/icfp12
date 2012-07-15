@@ -131,23 +131,20 @@ class NearBot(object):
 
         # Find the nearest interesting thing and try to get there
         robot = get_robot(the_world)
+        num_nearby_lambdas = 5
 
         # Find the nearest lambdas
-        target, d = nearest_lambda(the_world)
-        total_distance = 1
-        if d:
-            total_distance = (d[0] + d[1]) or 1
-            choices.append((find_route(the_world, target, robot), 1))
-
-        for x in xrange(5):
-            target = random_lambda(the_world)
-            cmdlist = find_route(the_world, target, robot)
-            if cmdlist and cmdlist not in set(path for path, score in choices):
-                choices.append((cmdlist, float(len(cmdlist)) / total_distance))
-                #assert choices[-1][1] < 1.0
+        dist_lambdas = nearest_lambdas(the_world)[:num_nearby_lambdas]
+        if dist_lambdas:
+            closest_distance = dist_lambdas[0][0]
+            for dist, lambda_ in dist_lambdas:
+                cmdlist = find_route(the_world, lambda_, robot)
+                if not cmdlist:
+                    continue
+                choices.append((cmdlist, float(closest_distance) / len(cmdlist)))
 
         # There are no lambdas, go to the lift
-        if not target:
+        else:
             target, d = nearest_lift(the_world)
             choices.append((find_route(the_world, target, robot), 10))
 
@@ -170,39 +167,48 @@ class RandomBot(object):
 def point_distance(p0, p1):
     return math.sqrt((p0[0] - p1[0])**2 + (p0[1] - p1[1])**2)
 
-def nearest_lambda(the_world):
-    """Find the nearest lambda, and the distnace to it.
+def nearest_lambdas(the_world):
+    """Find the nearest lambda, and the distance to it.
 
     Returns:
       (closest_lambda, distance)
       closest_lambda -> (x, y) of the lambda
       distance -> (x_distance, y_distance)
     """
-    robot = None
     lambdas = []
-    for (x, y) in the_world.positions():
-        cell = the_world.at(x, y)
-
-        if cell == 'R':
-            robot = (x,y)
-        elif cell == '\\':
-            lambdas.append((x,y))
-
-    if not lambdas:
-        return None, None
-
-    assert robot
-
-    robot_x, robot_y = robot
-    closest_lambda = None
-    min_distance = 100000
-    for lambda_x, lambda_y in lambdas:
-        distance = point_distance((lambda_x, lambda_y), (robot_x, robot_y))
-        if min_distance > distance:
-            min_distance = distance
-            closest_lambda = (lambda_x, lambda_y)
-
-    return closest_lambda, (lambda_x - robot_x, lambda_y - robot_y)
+    for y, row in enumerate(the_world.map):
+        for x, c in enumerate(row):
+            if c == world.LAMBDA:
+                lambdas.append((manhattan_distance(the_world.robot, (x, y)), (x, y)))
+    lambdas.sort() 
+    return lambdas
+#
+#    robot = None
+#    lambdas = []
+#    for (x, y) in the_world.positions():
+#        cell = the_world.at(x, y)
+#
+#        if cell == 'R':
+#            robot = (x,y)
+#        elif cell == '\\':
+#            lambdas.append((x,y))
+#
+#    if not lambdas:
+#        return None, None
+#
+#    assert robot
+#
+#    robot_x, robot_y = robot
+#    closest_lambda = None
+#    min_distance = 100000
+#    for lambda_x, lambda_y in lambdas:
+#        distance = point_distance((lambda_x, lambda_y), (robot_x, robot_y))
+#        if min_distance > distance:
+#            min_distance = distance
+#            closest_lambda = (lambda_x, lambda_y)
+#
+#    return closest_lambda, (lambda_x - robot_x, lambda_y - robot_y)
+#
 
 def nearest_lift(the_world):
     robot = the_world.robot
@@ -374,11 +380,13 @@ def run_bot(bot, base_world, iterations, on_finish):
             max_moves = new_world.path
             best_world = new_world.copy()
             is_done = True
+            print str(new_world)
         elif not new_world.is_done() and new_world.score(True) > max_score:
             max_score = new_world.score(True)
             max_moves = new_world.path + 'A'
             best_world = new_world.copy()
             is_done = False
+            print str(new_world)
 
     on_finish(best_world, max_score, max_moves)
 
