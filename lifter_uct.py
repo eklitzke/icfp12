@@ -11,7 +11,8 @@ class Node(object):
         self.parent_node = parent_node
         self.world = w
         self.command_history = command_history
-        self.unexplored_commands = self.world.valid_commands() # implement. cache of valid commands
+        self.unexplored_commands = list(self.world.valid_moves())
+        #print 'unexplored_commands', self.unexplored_commands
         self.child_nodes = {} # map from command character to node
         self.total_picks = 0
         self.total_reward = 0
@@ -34,8 +35,8 @@ if __name__ == "__main__":
     node_count = 1
 
     while True:
-        print '-'*20
-        tree_root.pprint()
+        #print '-'*20
+        #tree_root.pprint()
 
         while True:
             # start at root, doing bandit picks, until we get to a place where we don't have a node yet
@@ -44,7 +45,7 @@ if __name__ == "__main__":
             command_path = []
 
             while True:
-                if ptr.world.done:
+                if ptr.world.is_done():
                     frontier_world = None
                     break
 
@@ -59,7 +60,7 @@ if __name__ == "__main__":
                     node_count += 1
                     ptr.child_nodes[next_cmd] = new_node
 
-                    if next_world.done:
+                    if next_world.is_done():
                         new_node.dead_end = True
                         p = new_node.parent_node
                         while True:
@@ -96,16 +97,16 @@ if __name__ == "__main__":
         # now we play a "random" game from this point forward, until end (or maybe some limit)
         depth = 0
         while True:
-            if frontier_world.done:
-                final_score = frontier_world.score
+            if frontier_world.is_done():
+                final_score = frontier_world.score()
                 break
             elif depth > 100:
                 frontier_world.move('A')
                 command_path.append('A')
-                final_score = frontier_world.score
+                final_score = frontier_world.score()
                 break
             else:
-                vc = frontier_world.valid_commands()
+                vc = list(frontier_world.valid_moves())
                 cmd = random.choice(vc)
                 frontier_world = frontier_world.move(cmd)
                 command_path.append(cmd)
