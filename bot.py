@@ -110,6 +110,7 @@ def random_lambda(the_world):
 class NearBot(object):
 
     name = "nearbot"
+    num_nearby_lambdas = 10
 
     def get_choices(self, the_world):
         """Returns a list of possible moves.
@@ -121,20 +122,21 @@ class NearBot(object):
         robot = get_robot(the_world)
 
         choices = []
-        # If we can push a rock to the right, add that as a choice.
-        if the_world.at(robot[0]+1, robot[1]) == world.ROCK and the_world.at(robot[0]+2, robot[1]) == world.EMPTY:
-            choices.append(('R', 1))
+        if False:
+            # N.B. detect_move_rocks does this now!
+            # If we can push a rock to the right, add that as a choice.
+            if the_world.at(robot[0]+1, robot[1]) == world.ROCK and the_world.at(robot[0]+2, robot[1]) == world.EMPTY:
+                choices.append(('R', 1))
 
-        # Same, pushing a rock left
-        if the_world.at(robot[0]-1, robot[1]) == world.ROCK and the_world.at(robot[0]-2, robot[1]) == world.EMPTY:
-            choices.append(('L', 1))
+            # Same, pushing a rock left
+            if the_world.at(robot[0]-1, robot[1]) == world.ROCK and the_world.at(robot[0]-2, robot[1]) == world.EMPTY:
+                choices.append(('L', 1))
 
         # Find the nearest interesting thing and try to get there
         robot = get_robot(the_world)
-        num_nearby_lambdas = 5
 
         # Find the nearest lambdas
-        dist_lambdas = nearest_lambdas(the_world)[:num_nearby_lambdas]
+        dist_lambdas = nearest_lambdas(the_world)[:self.num_nearby_lambdas]
         if dist_lambdas:
             closest_distance = dist_lambdas[0][0]
             for dist, lambda_ in dist_lambdas:
@@ -272,66 +274,92 @@ class WeightedBot(Bot):
 
         return weighted_chooser[ndx][1]
 
-_plans = {}
 class Plan(object):
     """A plan is a world object, plus a path we want to follow from that world.
     """
 
-    __slots__ = ['world', 'path']
+    __slots__ = ['world', 'path', 'total_path']
 
     def __init__(self, world, path):
         self.world = world
         self.path = path
+        self.total_path = world.path + path
 
     def __eq__(self, other):
         return self.world == other.world and self.path == other.path
 
+    def detect_move_rocks(self, w):
+        """Detect states where we can push a rock."""
+        extra_worlds = []
+        robot = w.robot
+        if (w.at(robot[0] + 1, robot[1]) == world.ROCK and
+                w.at(robot[0] + 2, robot[1]) == world.EMPTY):
+            extra_worlds.append(w.move('R'))
+
+        # Same, pushing a rock left
+        if (w.at(robot[0] - 1, robot[1]) == world.ROCK and
+                the_world.at(robot[0]-2, robot[1]) == world.EMPTY):
+            extra_worlds.append(w.move('L'))
+        return extra_worlds
+
     def execute(self):
         """Execute the plan, and return a new world."""
-        total_path = self.world.path + self.path
-        if total_path in _plans:
-            return _plans[total_path]
-        print 'exploring path %r + %r' % (self.world.path, self.path)
+        sys.stdout.write('exploring path %r + %r....' % (self.world.path, self.path))
+        sys.stdout.flush()
+        out = []
         world_copy = self.world.copy()
         # TODO: handle invalid moves
         try:
             for p in self.path:
                 world_copy = world_copy.move(p)
                 if world_copy.is_failed():
-                    _plans[total_path] = None
-                    return None
+                    return out
+                out.extend(self.detect_move_rocks(world_copy))
         except world.InvalidMove:
-            print 'path %r + %r INVALID' % (self.world.path, self.path)
-            _plans[total_path] = None
-            return None
-        print 'path %s yielded goodness %f' % (world_copy.path, world_copy.goodness())
-        _plans[total_path] = world_copy
-        return world_copy
+            sys.stdout.write(' path was INVALID\n')
+            sys.stdout.flush()
+            return out
+        sys.stdout.write(' goodness was %f\n' % (world_copy.goodness()))
+        sys.stdout.flush()
+
+        out.append(world_copy)
+        return out
 
 class Planner(object):
 
     def __init__(self):
         self.plans = []
+        self.seen_plans = set()
+        self.sorted = True
 
     def remove_plan(self, plan):
         """Remove a plan -- inefficient!"""
+        orig_len = len(self.plans)
         self.plans = [(score, p) for score, p in self.plans if p != plan]
+        assert orig_len > len(self.plans)
 
     def add_plan(self, plan, score):
         """Adds a plan -- inefficient!"""
         self.plans.append((score, plan))
-        self.plans.sort(reverse=True)
+        self.sorted = False
 
     def add_plans(self, plans_and_scores):
         """Adds plans -- inefficient!"""
         plans_and_scores = list(plans_and_scores)
-        assert not any(p is None for s, p in plans_and_scores)
-        self.plans.extend(plans_and_scores)
-        self.plans.sort(reverse=True)
+        for score, plan in plans_and_scores:
+            if plan.total_path in self.seen_plans:
+                continue
+            else:
+                self.plans.append((score**2, plan))
+                self.seen_plans.add(plan.total_path)
+        if plans_and_scores:
+            self.sorted = False
 
-    def choose_plan(self):
-        #if self.plans:
-        #    return self.plans[0][1]
+    def choose_plan(self, remove=True):
+        if not self.sorted:
+            self.plans.sort(reverse=True)
+            self.sorted = True
+
         total_score = sum(s for s, p in self.plans)
         choice = random.random() * total_score
         plan = None
@@ -341,8 +369,12 @@ class Planner(object):
             choice -= score
         if plan is None:
             assert len(self.plans) == 0
+        elif remove:
+            self.remove_plan(plan)
         return plan
 
+    def __len__(self):
+        return len(self.plans)
 
 
 def run_bot(bot, base_world, iterations, on_finish, initial_path=None):
@@ -376,31 +408,28 @@ def run_bot(bot, base_world, iterations, on_finish, initial_path=None):
     planner.add_plans((score, Plan(base_world, plan)) for (plan, score) in choices)
     assert planner.plans
     for _ in looper:
-        print '\nLOOPING, so far best route is %s %s' % (max_score, max_moves)
+        print '\nLOOPING, best is %s, %d plans under consideration' % (max_score, len(planner))
         plan = planner.choose_plan()
         if plan is None:
             break
-        new_world = plan.execute()
-        planner.remove_plan(plan)
-        if new_world is None:
-            continue
+        new_worlds = plan.execute()
+        for new_world in new_worlds:
+            if not (new_world.is_failed() or new_world.is_done()):
+                choices = bot.get_choices(new_world)
+                planner.add_plans((score, Plan(new_world, plan)) for (plan, score) in choices)
 
-        if not (new_world.is_failed() or new_world.is_done()):
-            choices = bot.get_choices(new_world)
-            planner.add_plans((score, Plan(new_world, plan)) for (plan, score) in choices)
-
-        if new_world.is_done() and new_world.score() > max_score:
-            max_score = new_world.score()
-            max_moves = new_world.path
-            best_world = new_world.copy()
-            is_done = True
-            print str(new_world)
-        elif not new_world.is_done() and new_world.score() > max_score:
-            max_score = new_world.score()
-            max_moves = new_world.path + 'A'
-            best_world = new_world.copy()
-            is_done = False
-            print str(new_world)
+            if new_world.is_done() and new_world.score() > max_score:
+                max_score = new_world.score()
+                max_moves = new_world.path
+                best_world = new_world.copy()
+                is_done = True
+                print str(new_world)
+            elif not new_world.is_done() and new_world.score() > max_score:
+                max_score = new_world.score()
+                max_moves = new_world.path + 'A'
+                best_world = new_world.copy()
+                is_done = False
+                print str(new_world)
 
     print ''
     print 'Ran out of iterations!'
