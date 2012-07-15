@@ -167,7 +167,7 @@ def main():
             log.info(my_world)
             if c == -1:
                 if args.use_stdin:
-                    time.sleep(1)
+                    time.sleep(0.5)
                 break
             if c == ord('b'):
                 if not the_bot:

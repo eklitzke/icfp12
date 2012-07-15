@@ -1,5 +1,6 @@
 import argparse
 import types
+import functools
 import random
 import logging
 import math
@@ -13,12 +14,16 @@ MOVE_COMMANDS = ["U", "D", "L", "R", "A", "W"]
 
 log = logging.getLogger(__name__)
 
+def manhattan_distance(origin, to):
+    return abs(to[0] - origin[0]) + abs(to[1] - origin[1])
+
 def find_route(world, to, origin):
     """Basic A* route finding, to/origin are (x,y) tuples
        world is an instance of World.
+
+       http://en.wikipedia.org/wiki/A*_search_algorithm
     """
-    def _manhattan_distance(to):
-        return abs(to[0] - origin[0]) + abs(to[1] - origin[1])
+    _manhattan_distance = functools.partial(manhattan_distance, origin)
 
     start = tuple(origin)
     open_blocks = {start: (9999,9999,9999,None)}  # FGH
@@ -39,11 +44,11 @@ def find_route(world, to, origin):
             # No route!
             return None
 
-        #Move current to closed list
+        # Move current to closed list
         closed_blocks[current] = open_blocks[current]
 
         # Use it:
-        scores = {".": 5, "\\": 0, " ": 2}
+        scores = {".": 4, "\\": 0, " ": 2}
         def _think(new, down=False):
             try:
                 block = world.at(new[0], new[1])
@@ -106,41 +111,52 @@ class NearBot(object):
 
     name = "nearbot"
 
-    def __init__(self):
-        self.route = []
-
-    def pick_move(self, the_world):
-        # We have a plan
+    def get_choices(self, the_world):
+        """Returns a list of possible moves.
+        
+        Returns:
+          [(movements, weight)]
+        """
+        assert not the_world.is_failed() and not the_world.is_done()
         robot = get_robot(the_world)
-        if the_world.at(robot[0]+1, robot[1]) == "*" and the_world.at(robot[0]+2, robot[1]) == " " and random.random() > 0.6:
-            self.route = []
-            return "R"
 
-        if the_world.at(robot[0]-1, robot[1]) == "*" and the_world.at(robot[0]-2, robot[1]) == " " and random.random() > 0.6:
-            self.route = []
-            return "L"
+        choices = []
+        # If we can push a rock to the right, add that as a choice.
+        if the_world.at(robot[0]+1, robot[1]) == "*" and the_world.at(robot[0]+2, robot[1]) == " ":
+            choices.append(('R', 1))
 
-        if self.route:
-            return self.route.pop(0)
+        # Same, pushing a rock left
+        if the_world.at(robot[0]-1, robot[1]) == "*" and the_world.at(robot[0]-2, robot[1]) == " ":
+            choices.append(('L', 1))
 
         # Find the nearest interesting thing and try to get there
         robot = get_robot(the_world)
-#        target = random_lambda(the_world)  # Random order
-#       target, d = nearest_lambda(the_world) # Nearest by absolute distance, not cmds
 
+        # Find the nearest lambdas
         target, d = nearest_lambda(the_world)
-        if (d and abs(d[0])+abs(d[1]) > 4) and random.random() > 0.5:
-            target = random_lambda(the_world)
+        total_distance = 1
+        if d:
+            total_distance = (d[0] + d[1]) or 1
+            choices.append((find_route(the_world, target, robot), 1))
 
+        for x in xrange(5):
+            target = random_lambda(the_world)
+            cmdlist = find_route(the_world, target, robot)
+            if cmdlist and cmdlist not in set(path for path, score in choices):
+                choices.append((cmdlist, float(len(cmdlist)) / total_distance))
+                #assert choices[-1][1] < 1.0
+
+        # There are no lambdas, go to the lift
         if not target:
             target, d = nearest_lift(the_world)
+            choices.append((find_route(the_world, target, robot), 10))
 
-        cmdlist = find_route(the_world, target, robot)
-        if cmdlist:
-            self.route = list(cmdlist)
-            return self.route.pop(0)
         # No Route found, give up
-        return "A"
+        if not choices:
+            choices.append(('A', 10))
+
+        return [(route, score * the_world.goodness(extra_moves=len(route)))
+                for route, score in choices if route is not None]
 
 class Bot(object):
     def pick_move(self, the_world):
@@ -155,6 +171,13 @@ def point_distance(p0, p1):
     return math.sqrt((p0[0] - p1[0])**2 + (p0[1] - p1[1])**2)
 
 def nearest_lambda(the_world):
+    """Find the nearest lambda, and the distnace to it.
+
+    Returns:
+      (closest_lambda, distance)
+      closest_lambda -> (x, y) of the lambda
+      distance -> (x_distance, y_distance)
+    """
     robot = None
     lambdas = []
     for (x, y) in the_world.positions():
@@ -182,17 +205,16 @@ def nearest_lambda(the_world):
     return closest_lambda, (lambda_x - robot_x, lambda_y - robot_y)
 
 def nearest_lift(the_world):
-    robot = None
+    robot = the_world.robot
     lambdas = []
+    door = None
     for (x, y) in the_world.positions():
         cell = the_world.at(x, y)
-
-        if cell == 'R':
-            robot = (x,y)
-        elif cell == 'O':
+        if cell == 'O':
             door = (x,y)
+        elif cell == '\\':
+            assert False, 'cannot find open door when lambdas exist'
 
-    assert robot
     assert door
 
     distance = point_distance(door, robot)
@@ -243,6 +265,69 @@ class WeightedBot(Bot):
 
         return weighted_chooser[ndx][1]
 
+class Plan(object):
+    """A plan is a world object, plus a path we want to follow from that world.
+    """
+
+    __slots__ = ['world', 'path']
+
+    def __init__(self, world, path):
+        self.world = world
+        self.path = path
+
+    def __eq__(self, other):
+        return self.world == other.world and self.path == other.path
+
+    def execute(self):
+        """Execute the plan, and return a new world."""
+        print 'exploring path %r + %r' % (self.world.path, self.path)
+        world_copy = self.world.copy()
+        # TODO: handle invalid moves
+        try:
+            for p in self.path:
+                world_copy = world_copy.move(p)
+                if world_copy.is_failed():
+                    return None
+        except world.InvalidMove:
+            print 'path %r + %r INVALID' % (self.world.path, self.path)
+            return None
+        print 'path %s yielded goodness %f' % (world_copy.path, world_copy.goodness())
+        return world_copy
+
+class Planner(object):
+
+    def __init__(self):
+        self.plans = []
+
+    def remove_plan(self, plan):
+        """Remove a plan -- inefficient!"""
+        self.plans = [(score, p) for score, p in self.plans if p != plan]
+
+    def add_plan(self, plan, score):
+        """Adds a plan -- inefficient!"""
+        self.plans.append((score, plan))
+        self.plans.sort(reverse=True)
+
+    def add_plans(self, plans_and_scores):
+        """Adds plans -- inefficient!"""
+        plans_and_scores = list(plans_and_scores)
+        assert not any(p is None for s, p in plans_and_scores)
+        self.plans.extend(plans_and_scores)
+        self.plans.sort(reverse=True)
+
+    def choose_plan(self):
+        total_score = sum(s for s, p in self.plans)
+        choice = random.random() * total_score
+        plan = None
+        for score, plan in self.plans:
+            if choice < 0:
+                break
+            choice -= score
+        if plan is None:
+            assert len(self.plans) == 0
+        return plan
+
+
 def run_bot(bot, base_world, iterations, on_finish):
 
     max_score = -1000
@@ -265,28 +350,35 @@ def run_bot(bot, base_world, iterations, on_finish):
     else:
         looper = forever()
 
+    planner = Planner()
+    choices = bot.get_choices(base_world)
+    assert choices
+    planner.add_plans((score, Plan(base_world, plan)) for (plan, score) in choices)
+    assert planner.plans
     for _ in looper:
-        the_world = base_world.copy()
-        moves = []
-        while not the_world.is_done():
-            next_move = the_bot.pick_move(the_world)
-            try:
-                the_world = the_world.move(next_move)
-                moves.append(next_move)
-            except world.InvalidMove:
-                log.warn('picked an invalid move')
-                continue
+        print '\nLOOPING, so far best route is %s %s' % (max_score, max_moves)
+        plan = planner.choose_plan()
+        if plan is None:
+            break
+        new_world = plan.execute()
+        planner.remove_plan(plan)
+        if new_world is None:
+            continue
 
-            if the_world.is_done() and the_world.score() > max_score:
-                max_score = the_world.score()
-                max_moves = moves
-                best_world = the_world.copy()
-                is_done = True
-            elif not the_world.is_done() and the_world.score(True) > max_score:
-                max_score = the_world.score(True)
-                max_moves = moves + ['A']
-                best_world = the_world.copy()
-                is_done = False
+        if not (new_world.is_failed() or new_world.is_done()):
+            choices = bot.get_choices(new_world)
+            planner.add_plans((score, Plan(new_world, plan)) for (plan, score) in choices)
+
+        if new_world.is_done() and new_world.score() > max_score:
+            max_score = new_world.score()
+            max_moves = new_world.path
+            best_world = new_world.copy()
+            is_done = True
+        elif not new_world.is_done() and new_world.score(True) > max_score:
+            max_score = new_world.score(True)
+            max_moves = new_world.path + 'A'
+            best_world = new_world.copy()
+            is_done = False
 
     on_finish(best_world, max_score, max_moves)
 

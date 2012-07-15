@@ -76,10 +76,12 @@ class World(object):
             flooding=None,
             waterproof=None,
             underwater=0,
-            trampolines=None):
+            trampolines=None,
+            path=''):
         self.in_lift = in_lift
         self.lambdas_collected = lambdas_collected
         self.map = map
+        self.path = path
         self.num_moves = num_moves
         self.state = state
         if water is None:
@@ -128,6 +130,12 @@ class World(object):
             win_mod = 3.0
         return (25 * self.lambdas_collected * win_mod) - self.num_moves
 
+    def goodness(self, extra_moves=0, force_abort=False):
+        """How good is the score for this world, considering how many moves it
+        took to get to this state?
+        """
+        return float(self.score(force_abort) - extra_moves) / float(self.num_moves or 1)
+
     def size(self):
         """Get a tuple of the width and the height of the map"""
         return len(self.map[0]), len(self.map)
@@ -148,7 +156,8 @@ class World(object):
                 flooding=self.flooding,
                 waterproof=self.waterproof,
                 underwater=self.underwater,
-                trampolines=self.trampolines)
+                trampolines=self.trampolines,
+                path=self.path)
 
     def at(self, x, y):
         """Get the thing at logical coordinates (x, y)
@@ -279,6 +288,7 @@ class World(object):
         world._check_end(direction, moved_rocks, after_update_map)
         world.map = after_update_map
         world.num_moves += 1
+        world.path += direction
         return world
 
     def copy_map(self, input_map=None):
@@ -357,9 +367,12 @@ class World(object):
         except Exception, e:
             pass
 
+    def __eq__(self, other):
+        return self.path == other.path
+
     def __str__(self):
-        buf = []
-        for row in self.map:
+        buf = ['~~~ %s' % self.path]
+        for row in reversed(self.map):
             buf.append(''.join(row))
         buf[-1] += ' %d lambdas left' % (self.remaining_lambdas,)
         return '\n'.join(buf)
