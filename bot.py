@@ -391,7 +391,9 @@ def run_bot(bot, base_world, iterations, on_finish, initial_path=None):
             is_done = False
             print str(new_world)
 
-    print 'ran out of iterations'
+    print ''
+    print 'Ran out of iterations!'
+    print ''
     on_finish(best_world, max_score, max_moves)
 
 def bot_for_name(name):
