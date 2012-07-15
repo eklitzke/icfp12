@@ -113,7 +113,7 @@ class NearBot(object):
 
     def get_choices(self, the_world):
         """Returns a list of possible moves.
-        
+
         Returns:
           [(movements, weight)]
         """
@@ -180,7 +180,7 @@ def nearest_lambdas(the_world):
         for x, c in enumerate(row):
             if c == world.LAMBDA:
                 lambdas.append((manhattan_distance(the_world.robot, (x, y)), (x, y)))
-    lambdas.sort() 
+    lambdas.sort()
     return lambdas
 #
 #    robot = None
@@ -271,6 +271,7 @@ class WeightedBot(Bot):
 
         return weighted_chooser[ndx][1]
 
+_plans = {}
 class Plan(object):
     """A plan is a world object, plus a path we want to follow from that world.
     """
@@ -286,6 +287,9 @@ class Plan(object):
 
     def execute(self):
         """Execute the plan, and return a new world."""
+        total_path = self.world.path + self.path
+        if total_path in _plans:
+            return _plans[total_path]
         print 'exploring path %r + %r' % (self.world.path, self.path)
         world_copy = self.world.copy()
         # TODO: handle invalid moves
@@ -293,11 +297,14 @@ class Plan(object):
             for p in self.path:
                 world_copy = world_copy.move(p)
                 if world_copy.is_failed():
+                    _plans[total_path] = None
                     return None
         except world.InvalidMove:
             print 'path %r + %r INVALID' % (self.world.path, self.path)
+            _plans[total_path] = None
             return None
         print 'path %s yielded goodness %f' % (world_copy.path, world_copy.goodness())
+        _plans[total_path] = world_copy
         return world_copy
 
 class Planner(object):
@@ -322,6 +329,8 @@ class Planner(object):
         self.plans.sort(reverse=True)
 
     def choose_plan(self):
+        #if self.plans:
+        #    return self.plans[0][1]
         total_score = sum(s for s, p in self.plans)
         choice = random.random() * total_score
         plan = None

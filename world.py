@@ -134,7 +134,7 @@ class World(object):
         """How good is the score for this world, considering how many moves it
         took to get to this state?
         """
-        return float(self.score() - extra_moves) / float(self.num_moves or 1)
+        return float(self.score() - extra_moves)**2 / float(self.num_moves or 1)
 
     def size(self):
         """Get a tuple of the width and the height of the map"""
