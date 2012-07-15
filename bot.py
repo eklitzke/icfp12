@@ -1,5 +1,6 @@
 import cProfile
 import argparse
+import collections
 import types
 import functools
 import pstats
@@ -11,6 +12,7 @@ import signal
 import sys
 
 from actions import get_actions
+import util
 
 #MOVE_COMMANDS = ["U", "D", "L", "R", "A", "W"]
 
@@ -249,18 +251,6 @@ class WeightedBot(Bot):
 
         return weighted_chooser[ndx][1]
 
-def run_path(a_world, path):
-    for movement in path:
-        if a_world.is_failed():
-            return
-        try:
-            a_world = a_world.move(movement)
-        except world.InvalidMove:
-            return
-    if a_world.is_failed():
-        return
-    return a_world
-
 class Plan(object):
     """A plan is a world object, plus a path we want to follow from that world.
     """
@@ -293,8 +283,6 @@ class Plan(object):
 
     def execute(self):
         """Execute the plan, and return a new world."""
-        sys.stdout.write('exploring path %r + %r....' % (self.world.path, self.path))
-        sys.stdout.flush()
         out = []
         world_copy = self.world.copy()
         # TODO: handle invalid moves
@@ -305,18 +293,51 @@ class Plan(object):
                     return out
                 out.extend(self.detect_move_rocks(world_copy))
         except world.InvalidMove:
-            sys.stdout.write(' path was INVALID\n')
-            sys.stdout.flush()
+            print >>sys.stderr, ' path was INVALID\n'
             return out
-        sys.stdout.write(' goodness was %f\n' % (world_copy.goodness()))
-        sys.stdout.flush()
+        print >>sys.stderr, ' goodness was %f' % (world_copy.goodness())
 
         out.append(world_copy)
         return out
 
 class Planner(object):
-    def __init__(self):
+    """Planner interface
+
+    A planner runs a bot against a world to find the best scoring path.
+
+    It uses "bot.get_choices(a_world)" => [(path, heuristic)] to discover paths
+    and "world.move(command)" to iterate worlds.
+
+    Instance variables:
+    .best -- an instance of util.Max().  On each world iteration the planner subclasses should call .best.add() to keep track of the best world
+    .root_world -- the root world
+    """
+
+    def __init__(self, bot, root_world):
+        self.bot = bot
+        self.best = util.Max()
+        self.best.add(root_world, root_world.score())
+        self.root_world = root_world
+
+    def __len__(self):
+        raise override_me
+
+    def iterate(self):
+        """Run a plan and add any new plans
+
+        Returns
+        true if there are more plans to execute
+        """
+        raise override_me
+
+class FlatPlanner(Planner):
+    def __init__(self, bot, root_world):
+        Planner.__init__(self, bot, root_world)
         self.plans = []
+        self.root_world = root_world
+        for path, weight in self.bot.get_choices(self.root_world):
+            plan = Plan(root_world, path)
+            self.add_plan(weight, plan)
 
     def add_plan(self, score, plan):
         self.plans.append((score, plan))
@@ -336,21 +357,83 @@ class Planner(object):
             del self.plans[idx]
         return item
 
+    def iterate(self):
+        p = self.pop_plan()
+        if not p:
+            return False
+        score, plan = p
+        worlds = plan.execute()
+        for w in worlds:
+            self.best.add(w, w.score())
+            if w.is_failed():
+                continue
+            if w.is_done():
+                continue
+            for path, weight in self.bot.get_choices(w):
+                new_plan = Plan(w, path)
+                self.add_plan(weight, new_plan)
+        return True
+
     def __len__(self):
         return len(self.plans)
 
-def run_bot(bot, base_world, iterations, on_finish, initial_path=None):
+#def empty_tree_planner_node():
+#    return {'scores': util.Total(),
+#            'weights': util.Total(),
+#            'max_scoring': util.Max(),
+#            'plan': None,
+#            'weight': None,
+#            'score': None,
+#            'children': collections.defaultdict(empty_tree_planner_node)}
+#
+#class TreePlanner(object):
+#    def __init__(self, bot, world, size=3):
+#        Planner.__init__(self, bot, world)
+#        self.root = empty_tree_planner_node()
+#        self.size = size
+#
+#    def evaluate_path(self, path):
+#        node = self.root
+#        prev_nodes = []
+#        for segment in util.segments(path, self.size):
+#            prev_nodes.append(node)
+#            node = node['children'][segment]
+#        return prev_nodes, node
+#
+#    def add_plan(self, weight, plan):
+#        path = plan.world.path
+#        prev_nodes, node = self.evaluate_path(plan.world.path)
+#        # prev_nodes is the path to node
+#        if node['plan'] is not None:
+#            # skip existing plans
+#            return
+#        node['plan'] = plan
+#        node['weight'] = weight
+#        node['weights'].append(weight)
+#        for prev_node in prev_nodes:
+#            prev_node['weights'].append(weight)
+#
+#    def iterate(self):
+#        pass
+
+def finish_path(world):
+    """Get the path of world and add 'A' if it's not done yet or failed"""
+    if world.is_done():
+        return world.path
+    elif not world.is_failed():
+        return world.path + 'A'
+
+def run_bot(bot, base_world, iterations,
+        on_finish=None,
+        initial_path=None,
+        on_best=None,
+        on_plan=None,
+        on_loop=None):
 
     max_score = -1000
     max_moves = None
     best_world = None
     is_done = False
-
-    def return_best(*args):
-        on_finish(best_world, max_score, max_moves)
-
-    signal.signal(signal.SIGINT, return_best)
-    signal.signal(signal.SIGALRM, return_best)
 
     def forever():
         while True:
@@ -361,43 +444,38 @@ def run_bot(bot, base_world, iterations, on_finish, initial_path=None):
     else:
         looper = forever()
 
-    planner = Planner()
     if initial_path:
-        planner.add_plan(1.0, Plan(base_world, initial_path))
-    else:
-        for path, weight in bot.get_choices(base_world):
-            planner.add_plan(weight, Plan(base_world, path))
-
+        for p in initial_path:
+            try:
+                base_world = base_world.move(p)
+            except world.InvalidMove:
+                break
+    planner = FlatPlanner(bot, base_world)
     for _ in looper:
-        print '\nLOOPING, best is %s, %d plans under consideration' % (max_score, len(planner))
-        score_plan = planner.pop_plan()
-        if score_plan is None:
+        if on_loop is not None:
+            on_loop(planner)
+        more_plans = planner.iterate()
+        a_world = planner.best.key
+        if a_world is None:
+            continue
+        score = planner.best.score
+        if score > max_score:
+            if on_best:
+                on_best(planner, a_world)
+            max_world = a_world
+            max_score = score
+            max_moves = finish_path(a_world)
+            if a_world.is_done():
+                if on_finish:
+                    on_finish(a_world, score, max_moves)
+        if not more_plans:
             break
-        score, plan = score_plan
-        new_worlds = plan.execute()
-        for new_world in new_worlds:
-            if not (new_world.is_failed() or new_world.is_done()):
-                choices = bot.get_choices(new_world)
-                for path, score in choices:
-                    planner.add_plan(score, Plan(new_world, path))
-
-            if new_world.is_done() and new_world.score() > max_score:
-                max_score = new_world.score()
-                max_moves = new_world.path
-                best_world = new_world.copy()
-                is_done = True
-                print str(new_world)
-            elif not new_world.is_done() and new_world.score() > max_score:
-                max_score = new_world.score()
-                max_moves = new_world.path + 'A'
-                best_world = new_world.copy()
-                is_done = False
-                print str(new_world)
-
-    print ''
-    print 'Ran out of iterations!'
-    print ''
-    on_finish(best_world, max_score, max_moves)
+    print >>sys.stderr, ''
+    print >>sys.stderr, 'Ran out of iterations!'
+    print >>sys.stderr, ''
+    w = planner.best.key
+    if on_finish:
+        on_finish(w, w.score(), finish_path(w))
 
 def bot_for_name(name):
     for cls in globals().values():
@@ -426,14 +504,44 @@ if __name__ == "__main__":
     the_bot = bot_for_name(args.name)
     the_world = world.read_world(args.file)
 
+    def on_finish(world, score, moves):
+        print >>sys.stderr, "Moves: %s" % "".join(moves)
+        print >>sys.stderr, "Score: %d (%d/%d)" % (score, world.lambdas_collected, world.remaining_lambdas)
+        world.post_score(moves, args.file, args.name)
+        sys.exit(0)
+
+    class ascope:
+        best = the_world
+
+    def on_best(planner, world):
+        global best
+        print >>sys.stderr, "Got new best world:"
+        print >>sys.stderr, world
+        ascope.best = planner.best.key
+
+    def on_loop(planner):
+        print >>sys.stderr, 'LOOPING, best is %s, %d plans under consideration' % (planner.best.score, len(planner))
+
+    def on_plan(planner, plan):
+        print >>sys.stderr, ('exploring path %r + %r....' % (plan.world.path, plan.path))
+
+    def return_best(*signal_args_i_dont_care_about):
+        print >>sys.stderr, "best world: ", ascope.best.score()
+        print >>sys.stderr
+        print >>sys.stderr, ascope.best
+
+        print finish_path(ascope.best)
+        os._exit(0)
+
+    signal.signal(signal.SIGINT, return_best)
+    signal.signal(signal.SIGALRM, return_best)
+
     if args.profile:
-        def on_result(*_):
-            pass
         profile_path = "profile.pstats"
         if os.path.exists(profile_path):
             os.unlink(profile_path)
         num_iterations = 100
-        cProfile.runctx("run_bot(the_bot, the_world, num_iterations, on_result)", globals(), locals(), profile_path)
+        cProfile.runctx("run_bot(the_bot, the_world, num_iterations)", globals(), locals(), profile_path)
         stats = pstats.Stats(profile_path)
         stats.sort_stats('cumulative')
         stats.print_stats()
@@ -443,11 +551,11 @@ if __name__ == "__main__":
         def on_finish(world, score, moves):
             print ''.join(moves)
             sys.exit(0)
-        run_bot(the_bot, the_world, -1, on_finish)
+        run_bot(the_bot, the_world, -1, on_finish=on_finish, on_best=on_best)
     else:
-        def on_finish(world, score, moves):
-            print "Moves: %s" % "".join(moves)
-            print "Score: %d (%d/%d)" % (score, world.lambdas_collected, world.remaining_lambdas)
-            world.post_score(moves, args.file, args.name)
-            sys.exit(0)
-        run_bot(the_bot, the_world, args.iterations, on_finish, initial_path=args.initial_path.rstrip('A'))
+        run_bot(the_bot, the_world, args.iterations,
+                on_finish=on_finish,
+                on_plan=on_plan,
+                on_best=on_best,
+                on_loop=on_loop,
+                initial_path=args.initial_path.rstrip('A'))
