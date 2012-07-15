@@ -279,15 +279,17 @@ class Plan(object):
         """Detect states where we can push a rock."""
         extra_worlds = []
         robot = w.robot
-        if (w.at(robot[0] + 1, robot[1]) == world.ROCK and
-                w.at(robot[0] + 2, robot[1]) == world.EMPTY):
-            extra_worlds.append(w.move('R'))
-
+        width, height = w.size()
+        if (robot[0] + 2) < width:
+            if (w.at(robot[0] + 1, robot[1]) == world.ROCK and
+                    w.at(robot[0] + 2, robot[1]) == world.EMPTY):
+                extra_worlds.append(w.move('R'))
+        if (robot[0] - 2) >= 0:
         # Same, pushing a rock left
-        if (w.at(robot[0] - 1, robot[1]) == world.ROCK and
-                the_world.at(robot[0]-2, robot[1]) == world.EMPTY):
-            extra_worlds.append(w.move('L'))
-        return extra_worlds
+            if (w.at(robot[0] - 1, robot[1]) == world.ROCK and
+                    the_world.at(robot[0]-2, robot[1]) == world.EMPTY):
+                extra_worlds.append(w.move('L'))
+            return extra_worlds
 
     def execute(self):
         """Execute the plan, and return a new world."""
