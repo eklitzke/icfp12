@@ -15,11 +15,11 @@ class Node(object):
         self.unexplored_commands.remove('A') # safe optimization
         #print 'unexplored_commands', self.unexplored_commands
         self.child_nodes = {} # map from command character to node
-        self.effective_score = self.world.effective_score()
+        self.score = self.world.score()
         self.dominated = False
 
     def pprint(self, indent=0):
-        print '%s[%s] %d %s' % (' '*indent, self.command_history, self.effective_score, 'DONE' if self.world.is_done() else '')
+        print '%s[%s] %d %s' % (' '*indent, self.command_history, self.score, 'DONE' if self.world.is_done() else '')
         for cmd, child in self.child_nodes.items():
             child.pprint(indent+2)
 
@@ -44,15 +44,15 @@ if __name__ == "__main__":
         global node_count, best_score, best_commands
 
         n = Node(parent, w, command_history)
-        if best_score is None or n.effective_score > best_score:
+        if best_score is None or n.score > best_score:
             print 'NEWBEST'
-            best_score = n.effective_score
+            best_score = n.score
             best_commands = n.command_history
         map_to_node[map_str] = n
         node_count += 1
         if not w.is_done():
             explorable_nodes.append(n)
-            heappush(explore_heapq, (-n.effective_score, n))
+            heappush(explore_heapq, (-n.score, n))
         return n
 
     root = add_node(None, initial_world, world_to_map_str(initial_world), '')
@@ -66,7 +66,7 @@ if __name__ == "__main__":
         #root.pprint()
 
         # pick next node to explore
-        if random.random() > 0.9:
+        if random.random() > 0.5:
             tries = 0
             while True:
                 if not explorable_nodes:
