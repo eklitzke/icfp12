@@ -401,7 +401,7 @@ def read_world(files):
     flooding = None
     trampoline_keys = {}
     for row, line in enumerate(fileinput.input(files)):
-        line = line.strip()
+        line = line.rstrip('\r\n')
         if line == '':
             ext = True
             continue
