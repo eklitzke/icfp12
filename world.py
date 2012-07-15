@@ -123,13 +123,20 @@ class World(object):
         return self.state == ABORTED
 
     def score(self):
-        if self.is_failed():
-            return 0
-        win_mod = 2.0
-        if self.is_done() and not (self.is_aborted() or self.is_failed()):
-            win_mod = 3.0
+        s = 25*self.lambdas_collected - self.num_moves
+        if self.is_aborted():
+            s += 25*self.lambdas_collected
+        elif self.state == REACHED_LIFT:
+            s += 50*self.lambdas_collected
+        return s
 
-        return (25 * self.lambdas_collected * win_mod) - self.num_moves
+    def effective_score(self):
+        'if we are done, then just the score. if not done, score we could get by just aborting'
+        if self.is_done:
+            return self.score()
+        else:
+            # assume we just abort next
+            return 50*self.lambdas_collected - self.num_moves
 
     def goodness(self, extra_moves=0, force_abort=False):
         """How good is the score for this world, considering how many moves it
