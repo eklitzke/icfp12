@@ -289,6 +289,7 @@ class World(object):
         for move in [UP, DOWN, LEFT, RIGHT]:
             dx = 0
             dy = 0
+            rx, ry = self.robot
             if move == UP:
                 dy += 1
             elif move == DOWN:
