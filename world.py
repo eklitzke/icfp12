@@ -20,6 +20,9 @@ CLOSED = 'L'
 OPEN = 'O'
 EARTH = '.'
 EMPTY = ' '
+BEARD = 'W' # OH WADLER, MY WADLER
+RAZOR = '!'
+
 TRAMPOLINES = string.uppercase[:9]
 TARGETS = string.digits
 
@@ -80,7 +83,9 @@ class World(object):
                  trampolines=None,
                  path='',
                  rocks=None,
-                 lift=None):
+                 lift=None,
+                 beards=None,
+                 razors=None):
         self.in_lift = in_lift
         self.lambdas_collected = lambdas_collected
         self.map = map
@@ -131,6 +136,18 @@ class World(object):
         if trampolines is None:
             trampolines = {}
         self.trampolines = trampolines
+
+        if razors is None:
+            razors = set(p for p, c in self.symbols() if c == RAZOR)
+        self.razors = razors
+
+        if beards is None:
+            beards = set(p for p, c in self.symbols() if c == BEARD)
+        self.beards = beards
+
+    def symbols(self):
+        for p in self.positions():
+            yield p, self.map[p[1]][p[0]]
 
     def check_lambdas(self):
         print '%d CHECKING LAMBDAS' % (id(self),)
@@ -209,7 +226,9 @@ class World(object):
                       trampolines=self.trampolines,
                       path=self.path,
                       rocks=self.rocks,
-                      lift=self.lift)
+                      lift=self.lift,
+                      razors=self.razors.copy(),
+                      beards=self.beards.copy())
         #other.check_rocks()
         #print '%d copied to %d' % (id(self), id(other))
         return other

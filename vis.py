@@ -23,6 +23,8 @@ CELL_TO_COLOR_PAIR = {
     'R': 4,
     'L': 5,
     'O': 6,
+    world.RAZOR: 0,
+    world.BEARD: 0
 }
 
 def draw_world(screen, the_world):
