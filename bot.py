@@ -52,7 +52,7 @@ def find_route(a_world, to, origin):
         closed_blocks[current] = open_blocks[current]
 
         # Use it:
-        scores = {world.EARTH: 4, world.LAMBDA: 0, world.EMPTY: 2}
+        scores = {world.EARTH: 4, world.LAMBDA: 0, world.EMPTY: 2, world.RAZOR: 3, world.BEARD: 1}
         def _think(new, down=False):
             try:
                 block = a_world.at(new[0], new[1])
@@ -62,7 +62,7 @@ def find_route(a_world, to, origin):
             except IndexError:
                 # we tried to think of a position that was out-of-bounds
                 return
-            if block and block not in "#*L123456789" and new not in closed_blocks:
+            if block and block not in "#W*L123456789" and new not in closed_blocks:
                 g = scores.get(block, 5)
                 if new not in open_blocks or g < open_blocks[new][1]:
                     h = _manhattan_distance(new)
@@ -249,6 +249,18 @@ class Plan(object):
     def __eq__(self, other):
         return self.world == other.world and self.path == other.path
 
+    def detect_beards(self, w):
+        ret = []
+        if w.num_razors > 0:
+            rx, ry = w.robot
+            num_beards = 0
+            for bx, by in w.beards:
+                if abs(rx - bx) <= 1 and abs(ry - by) <= 1:
+                    num_beards += 1
+            if num_beards > 0:
+                ret.append(w.move(world.SHAVE))
+        return ret
+
     def detect_move_rocks(self, w):
         """Detect states where we can push a rock."""
         extra_worlds = []
@@ -276,6 +288,7 @@ class Plan(object):
                 if world_copy.is_failed():
                     return out
                 out.extend(self.detect_move_rocks(world_copy))
+                out.extend(self.detect_beards(world_copy))
         except world.InvalidMove:
             #print >>sys.stderr, ' path was INVALID'
             return out
