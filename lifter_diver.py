@@ -3,6 +3,15 @@ import random
 import math
 from heapq import *
 
+def wrc(weighted_choices):
+    total_weight = sum(w for (w, c) in weighted_choices)
+    x = random.random()*total_weight
+    for (w, c) in weighted_choices:
+        x -= w
+        if x < 0:
+            return c
+    return c
+
 def world_to_map_str(w):
     return ''.join(''.join(row) for row in w.map)
 
@@ -18,7 +27,6 @@ class Node(object):
         self.child_nodes = {} # map from command character to node
         self.score = self.world.score()
         self.max_child_score = self.score
-        self.dominated = False
 
     def pprint(self, indent=0, depth_left=-1):
         print '%s[%s] %d %d %s' % (' '*indent, self.command_history, self.score, self.max_child_score, 'DONE' if self.world.is_done() else '')
@@ -38,8 +46,6 @@ if __name__ == "__main__":
 
     node_count = 0
 
-    explorable_nodes = []
-    explore_heapq = []
     map_to_node = {} # key is stringified map, value is node
 
     debug_mode = False
@@ -57,70 +63,56 @@ if __name__ == "__main__":
             best_commands = n.command_history
         map_to_node[map_str] = n
         node_count += 1
-        if not w.is_done():
-            explorable_nodes.append(n)
-            heappush(explore_heapq, (-n.score, n))
+        # if not w.is_done():
+        #     explorable_nodes.append(n)
+        #     heappush(explore_heapq, (-n.score, n))
         return n
+
+    def attempt_dive(start):
+        cursor = start
+        greedy_mode = False
+        while True:
+            if cursor.world.is_done():
+                return None # failed dive
+
+            if random.random() < 0.05:
+                greedy_mode = True
+
+            if greedy_mode:
+                scored_children = [(c.max_child_score, c) for c in cursor.child_nodes.values() if c]
+                if scored_children:
+                    scored_children.sort(reverse=True)
+                    cursor = scored_children[0][1]
+                    continue
+
+            diveable_children = [c for c in cursor.child_nodes.values() if c]
+            num_possible_children = len(diveable_children) + len(cursor.unexplored_commands)
+            if num_possible_children == 0:
+                return None
+            if random.random() < (float(len(diveable_children))/num_possible_children):
+                cursor = random.choice(diveable_children)
+            else:
+                break # just stay here and explore one of the unexplored possibilities
+        return cursor
 
     root = add_node(None, initial_world, world_to_map_str(initial_world), '')
 
     itercount = 0
     while True:
         if debug_mode or ((itercount % 1000) == 0):
-            print '%d nodes, %d explorable nodes' % (node_count, len(explorable_nodes))
+            print '%d nodes' % node_count
             print 'best score %d for [%s]' % (best_score, best_commands)
-            #root.pprint(indent=0, depth_left=2)
+            #root.pprint(indent=0, depth_left=3)
         itercount += 1
 
-        # pick next node to explore
-        if random.random() > 0.5:
-            tries = 0
-            while True:
-                if not explorable_nodes:
-                    from_node = None
-                    break
+        while True:
+            dive_result = attempt_dive(root)
 
-                debug('random pick')
-
-                from_node = random.choice(explorable_nodes)
-                debug('picked node [%s]' % from_node.command_history)
-
-                if from_node.dominated:
-                    debug('  node was dominated, ignore')
-                elif not from_node.unexplored_commands:
-                    debug('  no unexplored commands from this node')
-                else:
-                    break
-
-                tries += 1
-                if tries > 2:
-                    # compact
-                    pre_len = len(explorable_nodes)
-                    explorable_nodes = [n for n in explorable_nodes if (not n.dominated) and (n.unexplored_commands)]
-                    debug('compacted explore list from %d to %d' % (pre_len, len(explorable_nodes)))
-        else:
-            while True:
-                if not explore_heapq:
-                    from_node = None
-                    break
-
-                debug('queue pick')
-
-                _, from_node = explore_heapq[0]
-                debug('picked node [%s]' % from_node.command_history)
-
-                if from_node.dominated:
-                    debug('  node was dominated, ignore')
-                    heappop(explore_heapq) # throw it out so we don't get it again
-                elif not from_node.unexplored_commands:
-                    debug('  no unexplored commands from this node')
-                    heappop(explore_heapq) # throw it out so we don't get it again
-                else:
-                    break
-
-        # this will happen if we ran out of nodes during compacting
-        if not from_node:
-            break
+            if dive_result:
+                debug('dive result [%s]' % dive_result.command_history)
+                from_node = dive_result
+                break
+            debug('dive failed')
 
         next_command = random.choice(from_node.unexplored_commands)
         from_node.unexplored_commands.remove(next_command)
@@ -143,17 +135,15 @@ if __name__ == "__main__":
             new_node = add_node(from_node, next_world, next_map_str, from_node.command_history+next_command)
             from_node.child_nodes[next_command] = new_node
 
-            # if we outdid another node, need to mark it and all its children as dominated
+            # if we outdid another node, need to make its parent point to None instead of it
             if matched_node:
-                debug('  marking dominated nodes')
-                matched_node.parent = from_node # who's your daddy now, bitch!
-                q = [matched_node]
-                while q:
-                    n = q.pop()
-                    n.dominated = True
-                    for ch in n.child_nodes.values():
-                        if ch is not None:
-                            q.append(ch)
+                for c, n in matched_node.parent_node.child_nodes.iteritems():
+                    if n is matched_node:
+                        debug('reassigning parent [%s] edge %s to be None, outdid by [%s]' % (matched_node.parent_node.command_history, c, new_node.command_history))
+                        matched_node.parent_node.child_nodes[c] = None
+                        break
+                else:
+                    assert False, "didn't find it"
 
             # update max scores up chain as necessary
             ms = new_node.score

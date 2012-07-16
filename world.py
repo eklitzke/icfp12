@@ -200,6 +200,8 @@ class World(object):
 
     def valid_moves(self):
         """Get the list of valid moves, as a string."""
+        if self.is_done():
+            return ''
         ret = ABORT+WAIT
         w = self.width()
         h = self.height()

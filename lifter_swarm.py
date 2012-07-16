@@ -3,6 +3,15 @@ import random
 import math
 from heapq import *
 
+def wrc(weighted_choices):
+    total_weight = sum(w for (w, c) in weighted_choices)
+    x = random.random()*total_weight
+    for (w, c) in weighted_choices:
+        x -= w
+        if x < 0:
+            return c
+    return c
+
 def world_to_map_str(w):
     return ''.join(''.join(row) for row in w.map)
 
@@ -38,8 +47,6 @@ if __name__ == "__main__":
 
     node_count = 0
 
-    explorable_nodes = []
-    explore_heapq = []
     map_to_node = {} # key is stringified map, value is node
 
     debug_mode = False
@@ -57,70 +64,51 @@ if __name__ == "__main__":
             best_commands = n.command_history
         map_to_node[map_str] = n
         node_count += 1
-        if not w.is_done():
-            explorable_nodes.append(n)
-            heappush(explore_heapq, (-n.score, n))
+        # if not w.is_done():
+        #     explorable_nodes.append(n)
+        #     heappush(explore_heapq, (-n.score, n))
         return n
 
     root = add_node(None, initial_world, world_to_map_str(initial_world), '')
 
+    cursor = root
+
     itercount = 0
     while True:
         if debug_mode or ((itercount % 1000) == 0):
-            print '%d nodes, %d explorable nodes' % (node_count, len(explorable_nodes))
+            print '%d nodes' % node_count
             print 'best score %d for [%s]' % (best_score, best_commands)
-            #root.pprint(indent=0, depth_left=2)
+            print 'cursor at [%s]' % cursor.command_history
+            root.pprint(indent=0, depth_left=3)
         itercount += 1
+        #root.pprint()
 
-        # pick next node to explore
-        if random.random() > 0.5:
-            tries = 0
-            while True:
-                if not explorable_nodes:
-                    from_node = None
-                    break
+        # move cursor randomly until we get to somewhere unexplored
+        debug('cursor at [%s]' % cursor.command_history)
+        while True:
+            weighted_choices = []
+            if cursor.parent_node:
+                weighted_choices.append((2.0, cursor.parent_node))
+            if cursor.unexplored_commands:
+                weighted_choices.append((1.0, cursor))
+            scored_children = [(c.max_child_score, c) for c in cursor.child_nodes.values() if c]
+            #debug('scored_children %s' % scored_children)
+            if scored_children:
+                scored_children.sort(reverse=True)
+                weighted_choices.append((1.0, scored_children[0][1]))
+                if len(scored_children) > 1:
+                    weighted_choices.append((0.5, random.choice(scored_children[1:])[1]))
 
-                debug('random pick')
+            assert weighted_choices
+            #debug('choices %s' % ' '.join('%.1f:%s' % (w, c.command_history) for (w, c) in weighted_choices))
+            pick = wrc(weighted_choices)
+            #debug('moved to [%s]' % pick.command_history)
 
-                from_node = random.choice(explorable_nodes)
-                debug('picked node [%s]' % from_node.command_history)
-
-                if from_node.dominated:
-                    debug('  node was dominated, ignore')
-                elif not from_node.unexplored_commands:
-                    debug('  no unexplored commands from this node')
-                else:
-                    break
-
-                tries += 1
-                if tries > 2:
-                    # compact
-                    pre_len = len(explorable_nodes)
-                    explorable_nodes = [n for n in explorable_nodes if (not n.dominated) and (n.unexplored_commands)]
-                    debug('compacted explore list from %d to %d' % (pre_len, len(explorable_nodes)))
-        else:
-            while True:
-                if not explore_heapq:
-                    from_node = None
-                    break
-
-                debug('queue pick')
-
-                _, from_node = explore_heapq[0]
-                debug('picked node [%s]' % from_node.command_history)
-
-                if from_node.dominated:
-                    debug('  node was dominated, ignore')
-                    heappop(explore_heapq) # throw it out so we don't get it again
-                elif not from_node.unexplored_commands:
-                    debug('  no unexplored commands from this node')
-                    heappop(explore_heapq) # throw it out so we don't get it again
-                else:
-                    break
-
-        # this will happen if we ran out of nodes during compacting
-        if not from_node:
-            break
+            if pick == cursor:
+                from_node = cursor
+                break
+            cursor = pick
+        debug('cursor moved to [%s]' % cursor.command_history)
 
         next_command = random.choice(from_node.unexplored_commands)
         from_node.unexplored_commands.remove(next_command)
@@ -146,7 +134,7 @@ if __name__ == "__main__":
             # if we outdid another node, need to mark it and all its children as dominated
             if matched_node:
                 debug('  marking dominated nodes')
-                matched_node.parent = from_node # who's your daddy now, bitch!
+                matched_node.parent = None # who's your daddy now, bitch!
                 q = [matched_node]
                 while q:
                     n = q.pop()
