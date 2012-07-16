@@ -1,6 +1,10 @@
+import os
+import pstats
+import cProfile
 import world
 import random
 import math
+import optparse
 from heapq import *
 
 def world_to_map_str(w):
@@ -23,13 +27,12 @@ class Node(object):
         for cmd, child in self.child_nodes.items():
             child.pprint(indent+2)
 
-if __name__ == "__main__":
+node_count = 0
+best_score = 0
+best_commands = ''
+
+def main():
     initial_world = world.read_world([])
-
-    best_score = 0
-    best_commands = ''
-
-    node_count = 0
 
     explorable_nodes = []
     explore_heapq = []
@@ -76,6 +79,7 @@ if __name__ == "__main__":
                 debug('random pick')
 
                 from_node = random.choice(explorable_nodes)
+
                 debug('picked node [%s]' % from_node.command_history)
 
                 if from_node.dominated:
@@ -147,3 +151,25 @@ if __name__ == "__main__":
                     for ch in n.child_nodes.values():
                         if ch is not None:
                             q.append(ch)
+
+def main_wrapper():
+    try:
+        main()
+    except KeyboardInterrupt:
+        pass
+
+if __name__ == '__main__':
+    parser = optparse.OptionParser()
+    parser.add_option('--profile', default=False, action='store_true')
+    opts, args = parser.parse_args()
+    if opts.profile:
+        profile_path = "profile.pstats"
+        if os.path.exists(profile_path):
+            os.unlink(profile_path)
+        cProfile.runctx("main_wrapper()", globals(), locals(), profile_path)
+        stats = pstats.Stats(profile_path)
+        stats.sort_stats('cumulative')
+        stats.print_stats()
+        os.unlink(profile_path)
+    else:
+        main_wrapper()
