@@ -101,14 +101,7 @@ def get_robot(the_world):
     return the_world.robot
 
 def random_lambda(the_world):
-    lambdas = []
-    for (x, y) in the_world.positions():
-        cell = the_world.at(x, y)
-        if cell == '\\':
-            lambdas.append((x,y))
-    if not lambdas:
-        return None
-    return random.choice(lambdas)
+    return random.choice(the_world.lambdas)
 
 
 class NearBot(object):
@@ -183,12 +176,9 @@ def nearest_lambdas(the_world):
       distance -> (x_distance, y_distance)
     """
     lambdas = []
-    for y, row in enumerate(the_world.map):
-        for x, c in enumerate(row):
-            if c == world.LAMBDA:
-                lambdas.append((manhattan_distance(the_world.robot, (x, y)), (x, y)))
-    lambdas.sort()
-    return lambdas
+    for x, y in the_world.lambdas:
+        lambdas.append((manhattan_distance(the_world.robot, (x, y)), (x, y)))
+    return sorted(lambdas)
 
 def nearest_lift(the_world):
     robot = the_world.robot
@@ -284,7 +274,7 @@ class Plan(object):
     def execute(self):
         """Execute the plan, and return a new world."""
         out = []
-        world_copy = self.world.copy()
+        world_copy = self.world
         # TODO: handle invalid moves
         try:
             for p in self.path:
@@ -540,7 +530,7 @@ if __name__ == "__main__":
         profile_path = "profile.pstats"
         if os.path.exists(profile_path):
             os.unlink(profile_path)
-        num_iterations = 100
+        num_iterations = args.iterations
         cProfile.runctx("run_bot(the_bot, the_world, num_iterations)", globals(), locals(), profile_path)
         stats = pstats.Stats(profile_path)
         stats.sort_stats('cumulative')

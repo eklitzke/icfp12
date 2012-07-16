@@ -70,7 +70,7 @@ class World(object):
             in_lift=False,
             lambdas_collected=0,
             num_moves=0,
-            remaining_lambdas=None,
+            lambdas=None,
             robot=None,
             state=RUNNING,
             water=None,
@@ -102,16 +102,33 @@ class World(object):
                     robot = x, y
                     break
         self.robot = robot # the robot's current position
-        if remaining_lambdas is None:
-            remaining_lambdas = 0
-            # compute the remaining lambdas
+        if lambdas is None:
+            # compute the existing lambdas
+            self.lambdas = set()
             for x, y in self.positions():
                 if map[y][x] == LAMBDA:
-                    remaining_lambdas += 1
-        self.remaining_lambdas = remaining_lambdas
+                    self.lambdas.add((x, y))
+            assert self.lambdas
+        else:
+            self.lambdas = copy.copy(lambdas)
         if trampolines is None:
             trampolines = {}
         self.trampolines = trampolines
+
+    def check_lambdas(self):
+        print '%d CHECKING' % (id(self),)
+        actual_lambdas = set()
+        for x, y in self.positions():
+            if self.map[y][x] == LAMBDA:
+                actual_lambdas.add((x, y))
+        if actual_lambdas != self.lambdas:
+            print 'actual has extra %s' % (actual_lambdas - self.lambdas)
+            print 'cached has extra %s' % (self.lambdas - actual_lambdas)
+            assert False
+
+    @property
+    def remaining_lambdas(self):
+        return len(self.lambdas)
 
     def is_done(self):
         return self.state != RUNNING
@@ -148,7 +165,7 @@ class World(object):
     def copy(self):
         """Make a copy of the World object."""
         return World([row[:] for row in self.map],
-                remaining_lambdas=self.remaining_lambdas,
+                lambdas=self.lambdas,
                 lambdas_collected=self.lambdas_collected,
                 in_lift=self.in_lift,
                 state=self.state,
@@ -253,8 +270,8 @@ class World(object):
              raise InvalidMove("unexpected %r" % already_there)
            self.map[rock_y][rock_x] = ROCK
         elif symbol == LAMBDA:
+            self.lambdas.remove((robot_x, robot_y))
             self.lambdas_collected += 1
-            self.remaining_lambdas -= 1
         elif symbol == OPEN:
             self.in_lift = True
         elif symbol == CLOSED:
@@ -273,6 +290,7 @@ class World(object):
             assert symbol in (EMPTY, EARTH, ROBOT), 'unexpectedly got %r' % (symbol,)
         self.map[orig_y][orig_x] = EMPTY
         self.map[robot_y][robot_x] = ROBOT
+
         self.robot = robot_x, robot_y
         return self.copy_map(self.map)
 
@@ -294,16 +312,16 @@ class World(object):
         return world
 
     def copy_map(self, input_map=None):
+        """Copy the map, efficiently."""
         input_map = input_map or self.map
         return map(list, input_map)
 
     def _update_world(self, read_map, moved_rocks):
+        """Update the world by moving rocks, opening lifts, etc."""
         write_map = self.copy_map(read_map)
         for x, y in self.positions():
             cell = read_map[y][x]
-            if cell == ROBOT:
-                pass
-            elif cell == ROCK:
+            if cell == ROCK:
                 below = read_map[y - 1][x]
                 left = read_map[y][x - 1]
                 right = read_map[y][x + 1]
