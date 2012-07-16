@@ -33,6 +33,7 @@ UP = 'U'
 WAIT = 'W'
 DOWN = 'D'
 ABORT = 'A'
+SHAVE = 'S'
 
 # States
 ABORTED = 'ABORTED'
@@ -47,7 +48,7 @@ DEFAULT_WATERPROOF = 10
 DEFAULT_RAZORS = 0
 DEFAULT_BEARD_GROWTH = 25
 
-
+all_dirs = [(-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1), (-1, 0)]
 
 class WorldEvent(Exception):
     pass
@@ -146,12 +147,14 @@ class World(object):
             razors = set(p for p, c in self.symbols() if c == RAZOR)
         self.razors = razors
 
-        if beards is None:
-            beards = set(p for p, c in self.symbols() if c == BEARD)
-        self.beards = beards
         if beard_growth is None:
             beard_growth = DEFAULT_BEARD_GROWTH
         self.beard_growth = beard_growth
+
+        if beards is None:
+            beards = dict((p, self.beard_growth) for p, c in self.symbols() if c == BEARD)
+        self.beards = beards
+
         if num_razors is None:
             num_razors = DEFAULT_RAZORS
         self.num_razors = num_razors
@@ -273,11 +276,19 @@ class World(object):
         ret = ABORT+WAIT
         w = self.width()
         h = self.height()
+        rx, ry = self.robot
+
+        # Shaving is valid if there are nearby beards
+        nearby_beards = 0
+        for bx, by in self.beards:
+            if abs(bx - rx) <= 1 and abs(by - ry) <= 1:
+                nearby_beards += 1
+        if nearby_beards > 0 and self.num_razors > 0:
+            ret += SHAVE
 
         for move in [UP, DOWN, LEFT, RIGHT]:
             dx = 0
             dy = 0
-            rx, ry = self.robot
             if move == UP:
                 dy += 1
             elif move == DOWN:
@@ -298,6 +309,8 @@ class World(object):
             if at == CLOSED:
                 continue
             if at in TARGETS:
+                continue
+            if at == BEARD:
                 continue
             if at == ROCK:
                 if dy != 0:
@@ -328,6 +341,13 @@ class World(object):
             pass
         elif direction == ABORT:
             pass
+        elif direction == SHAVE and self.num_razors > 0:
+            for bx, by in self.beards.keys():
+                if abs(bx - orig_x) <= 1 and abs(by - orig_y) <= 1:
+                    self.map[by][bx] = EMPTY
+                    del self.beards[bx, by]
+            self.num_razors -= 1
+
         robot_x += dx
         robot_y += dy
         # this will raise if the new coordinate is outside the map extent
@@ -353,6 +373,8 @@ class World(object):
             raise InvalidMove("unexpected closed lift")
         elif symbol == WALL:
             raise InvalidMove("unexpected wall")
+        elif symbol == BEARD:
+            raise InvalidMove("unexpected beard")
         elif symbol in TARGETS:
             raise InvalidMove("unexpected target")
         elif symbol in TRAMPOLINES:
@@ -361,6 +383,9 @@ class World(object):
             self.trampolines = dict((k, v) for (k, v) in self.trampolines.items() if v != target_pos and k != (robot_x, robot_y))
             self.map[robot_y][robot_x] = EMPTY
             robot_x, robot_y = target_pos
+        elif symbol == RAZOR:
+            self.num_razors += 1
+            self.razors = set(r for r in self.razors if r != (robot_x, robot_y))
         else:
             assert symbol in (EMPTY, EARTH, ROBOT), 'unexpectedly got %r' % (symbol,)
         self.map[orig_y][orig_x] = EMPTY
@@ -405,38 +430,62 @@ class World(object):
         write_map = self.copy_map(read_map)
         rock_removals = []
         rock_additions = []
-        for x, y in self.rocks:
-            below = read_map[y - 1][x]
-            left = read_map[y][x - 1]
-            right = read_map[y][x + 1]
-            rdiag = read_map[y - 1][x + 1]
-            ldiag = read_map[y - 1][x - 1]
-            if below == EMPTY:
-                rock_removals.append((x, y))
-                rock_additions.append((x, y - 1))
-                write_map[y - 1][x] = ROCK
-                write_map[y][x] = EMPTY
-                moved_rocks.add((x, y - 1))
-            # FIXME: what if robot below rock
-            elif below == ROCK and right == EMPTY and rdiag == EMPTY:
-                rock_removals.append((x, y))
-                rock_additions.append((x + 1, y - 1))
-                write_map[y][x] = EMPTY
-                write_map[y - 1][x + 1] = ROCK
-                moved_rocks.add((x + 1, y - 1))
-            elif below == ROCK and (right != EMPTY or rdiag != EMPTY) and left == EMPTY and ldiag == EMPTY:
-                rock_removals.append((x, y))
-                rock_additions.append((x - 1, y - 1))
-                write_map[y][x] = EMPTY
-                write_map[y - 1][x - 1] = ROCK
-                moved_rocks.add((x - 1, y - 1))
-            elif below == LAMBDA and right == EMPTY and rdiag == EMPTY:
-                rock_removals.append((x, y))
-                rock_additions.append((x + 1, y - 1))
-                write_map[y][x] = EMPTY
-                write_map[y - 1][x + 1] = ROCK
-                moved_rocks.add((x + 1, y - 1))
-
+        points = []
+        points.extend((y, x, ROCK) for x, y in self.rocks)
+        points.extend((y, x, BEARD) for x, y in self.beards)
+        points.sort()
+        w, h = self.size()
+        for y, x, check_sym in points:
+            if check_sym == BEARD:
+                growth_state = self.beards[x, y]
+                if growth_state <= 1:
+                    # for each nearby cell, apply growth
+                    for dx, dy in all_dirs:
+                       bx = x + dx
+                       by = y + dy
+                       if bx < 0 or by < 0 or bx >= w or by >= h:
+                           continue
+                       if read_map[by][bx] == EMPTY and write_map[by][bx] == EMPTY:
+                           write_map[by][bx] = BEARD
+                           self.beards[bx, by] = self.beard_growth
+                    new_growth_state = self.beard_growth
+                else:
+                    new_growth_state = growth_state - 1
+                self.beards[x, y] = new_growth_state
+            elif check_sym == ROCK:
+                below = read_map[y - 1][x]
+                left = read_map[y][x - 1]
+                right = read_map[y][x + 1]
+                rdiag = read_map[y - 1][x + 1]
+                ldiag = read_map[y - 1][x - 1]
+                if below == EMPTY:
+                    rock_removals.append((x, y))
+                    rock_additions.append((x, y - 1))
+                    write_map[y - 1][x] = ROCK
+                    write_map[y][x] = EMPTY
+                    moved_rocks.add((x, y - 1))
+                # FIXME: what if robot below rock
+                elif below == ROCK and right == EMPTY and rdiag == EMPTY:
+                    rock_removals.append((x, y))
+                    rock_additions.append((x + 1, y - 1))
+                    write_map[y][x] = EMPTY
+                    write_map[y - 1][x + 1] = ROCK
+                    moved_rocks.add((x + 1, y - 1))
+                elif below == ROCK and (right != EMPTY or rdiag != EMPTY) and left == EMPTY and ldiag == EMPTY:
+                    rock_removals.append((x, y))
+                    rock_additions.append((x - 1, y - 1))
+                    write_map[y][x] = EMPTY
+                    write_map[y - 1][x - 1] = ROCK
+                    moved_rocks.add((x - 1, y - 1))
+                elif below == LAMBDA and right == EMPTY and rdiag == EMPTY:
+                    rock_removals.append((x, y))
+                    rock_additions.append((x + 1, y - 1))
+                    write_map[y][x] = EMPTY
+                    write_map[y - 1][x + 1] = ROCK
+                    moved_rocks.add((x + 1, y - 1))
+        for x, y in self.beards.keys():
+            if write_map[y][x] != BEARD:
+                del self.beards[x, y]
         removals = set(rock_removals) - set(rock_additions)
         self.rocks = sorted(((set(self.rocks) | set(rock_additions)) - removals),
                             key=lambda r: (r[1], r[0]))

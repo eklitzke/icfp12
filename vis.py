@@ -68,9 +68,9 @@ def display_status(screen, status):
 def display_score(screen, world):
     screen.move(2,1)
     screen.clrtoeol()
-    fmt = 'Score: %3d  Collected: %2d  Water: %2d  Flooding: %2d  Waterproof: %2d  Underwater: %2d  Razors: %2d  Growth: %2d'
+    fmt = 'Score: %3d Collected: %2d Water: %2d Flooding: %2d Waterproof: %2d Underwater: %2d Razors: %2d Growth: %2d %s'
     s = fmt % (world.score(), world.lambdas_collected, world.water,
-            world.flooding, world.waterproof, world.underwater, world.num_razors, world.beard_growth)
+            world.flooding, world.waterproof, world.underwater, world.num_razors, world.beard_growth, world.valid_moves())
     screen.addstr(s)
     screen.refresh()
 
@@ -91,6 +91,8 @@ KEY_TO_MOVE = {
     ord('R'): "R",
     ord('w'): "W",
     ord('W'): "W",
+    ord('s'): "S",
+    ord('S'): "S",
 }
 
 def translate_key(key):
