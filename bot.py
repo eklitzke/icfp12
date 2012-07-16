@@ -56,7 +56,6 @@ def find_route(a_world, to, origin):
         def _think(new, down=False):
             try:
                 block = a_world.at(new[0], new[1])
-                safe_to_go_down = True
                 if down and a_world.at(new[0], new[1]+2) == world.ROCK:
                     # Down is not an option if there is a rock above us
                     return
@@ -64,15 +63,10 @@ def find_route(a_world, to, origin):
                 # we tried to think of a position that was out-of-bounds
                 return
             if block and block not in "#*L123456789" and new not in closed_blocks:
-                if new not in open_blocks:
+                g = scores.get(block, 5)
+                if new not in open_blocks or g < open_blocks[new][1]:
                     h = _manhattan_distance(new)
-                    g = scores.get(block, 5)
-                    open_blocks[new] = (g+h, g, h, current)
-                else:
-                    g = scores.get(block, 5)
-                    if g < open_blocks[new][1]:
-                        h = _manhattan_distance(new)
-                        open_blocks[new] = (g+h, g, h, current)
+                    open_blocks[new] = (g + h, g, h, current)
 
         _think((current[0], current[1]+1))  # Up
         _think((current[0], current[1]-1), True)  # Down
