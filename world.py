@@ -44,6 +44,9 @@ REACHED_LIFT = 'REACHED_LIFT'
 DEFAULT_FLOODING = 0
 DEFAULT_WATER = -1
 DEFAULT_WATERPROOF = 10
+DEFAULT_RAZORS = 0
+DEFAULT_BEARD_GROWTH = 25
+
 
 
 class WorldEvent(Exception):
@@ -85,7 +88,9 @@ class World(object):
                  rocks=None,
                  lift=None,
                  beards=None,
-                 razors=None):
+                 razors=None,
+                 num_razors=None,
+                 beard_growth=None):
         self.in_lift = in_lift
         self.lambdas_collected = lambdas_collected
         self.map = map
@@ -144,6 +149,12 @@ class World(object):
         if beards is None:
             beards = set(p for p, c in self.symbols() if c == BEARD)
         self.beards = beards
+        if beard_growth is None:
+            beard_growth = DEFAULT_BEARD_GROWTH
+        self.beard_growth = beard_growth
+        if num_razors is None:
+            num_razors = DEFAULT_RAZORS
+        self.num_razors = num_razors
 
     def symbols(self):
         for p in self.positions():
@@ -227,6 +238,8 @@ class World(object):
                       path=self.path,
                       rocks=self.rocks,
                       lift=self.lift,
+                      beard_growth=self.beard_growth,
+                      num_razors=self.num_razors,
                       razors=self.razors.copy(),
                       beards=self.beards.copy())
         #other.check_rocks()
@@ -506,6 +519,8 @@ def read_world(files):
     water = None
     flooding = None
     trampoline_keys = {}
+    beard_growth = None
+    num_razors = None
     for row, line in enumerate(fileinput.input(files)):
         line = line.rstrip('\r\n')
         if line == '':
@@ -535,6 +550,10 @@ def read_world(files):
                     flooding = val
                 elif command == "waterproof":
                     waterproof = val
+                elif command == "growth":
+                    beard_growth = val
+                elif command == "razors":
+                    num_razors = val
             else:
                 log.error("unexpected extension: %r", line)
 
@@ -558,7 +577,9 @@ def read_world(files):
             water=water,
             flooding=flooding,
             waterproof=waterproof,
-            trampolines=trampolines)
+            trampolines=trampolines,
+            beard_growth=beard_growth,
+            num_razors=num_razors)
 
 def search_map_for_symbol(a_map, sym):
     "Search the map for a symbol and return the position"
